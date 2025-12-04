@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galeria Wen</title>
+    <style>
+        body { background-color: #111; color: #eee; font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .moldura { background: white; padding: 15px 15px 40px 15px; box-shadow: 0 0 30px rgba(255,255,255,0.1); max-width: 500px; width: 100%; transform: rotate(-1deg); }
+        img { width: 100%; height: auto; border: 1px solid #000; }
+        .assinatura { font-family: cursive; color: #000; text-align: right; margin-top: 10px; font-size: 1.2rem; font-weight: bold; }
+        .texto-ia { margin-top: 30px; text-align: center; color: #888; font-style: italic; max-width: 500px; }
+        .status { margin-top: 50px; font-size: 10px; color: #444; border: 1px solid #333; padding: 5px 10px; border-radius: 20px; }
+    </style>
+</head>
+<body>
+    <div class="moldura">
+        <img src="wen_art.jpg" alt="Arte gerada" onerror="this.src='https://placehold.co/600x600/EEE/31343C?text=Aguardando+Ciclo...'">
+        <div class="assinatura">Wen</div>
+    </div>
+    <div class="texto-ia" id="legenda">Carregando pensamento...</div>
+    <div class="status">ATUALIZADO A CADA 5 HORAS VIA GITHUB ACTIONS</div>
+    <script>
+        fetch('wen_art.txt').then(r => r.text()).then(t => document.getElementById('legenda').innerText = t).catch(e => document.getElementById('legenda').innerText = "Sem legenda.");
+    </script>
+</body>
+</html>
