@@ -39,7 +39,7 @@ def criar_arte():
     except: 
         tema = f"ERROR_FALLBACK_{int(time.time() * 1000)}" 
     
-    # --- 2. GERA IMAGEM USANDO SERVIDOR EXTERNO (COM TRATAMENTO DE ERRO) ---
+    # --- 2. GERA IMAGEM USANDO NOVO SERVIDOR (COM TRATAMENTO DE ERRO) ---
     cache_breaker = int(time.time() * 1000) 
     
     # Prompt Completo
@@ -47,18 +47,19 @@ def criar_arte():
     
     img_data = None
     
-    print("Tentando servidor externo (Pollinations) como fallback...")
+    print("Tentando novo servidor externo (Lexica Art)...")
     try:
         safe_prompt = urllib.parse.quote(prompt)
-        url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
+        # Novo endpoint de geração de imagem
+        url_lexica = f"https://image.lexica.art/full_generated/{safe_prompt}"
         
         # Faz a requisição e verifica se é uma imagem válida (para evitar o erro PIL)
-        r = requests.get(url_pol)
+        r = requests.get(url_lexica, allow_redirects=True)
         if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
              img_data = r.content
-             print("✅ Imagem gerada com sucesso pelo backup.")
+             print("✅ Imagem gerada com sucesso pelo Lexica Art.")
         else:
-             raise Exception("Backup não retornou imagem válida.")
+             raise Exception(f"Lexica Art retornou código: {r.status_code}.")
              
     except Exception as e:
         print(f"❌ Erro ao gerar imagem: {e}. Criando placeholder preto.")
