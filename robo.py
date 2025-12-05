@@ -1,99 +1,72 @@
 import os
-import random
 import requests
-import base64
-import json
 import urllib.parse
 from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
-from instagrapi import Client
 
-# Configurações e Segredos
+# --- CONFIGURAÇÕES (PREENCHA AQUI) ---
+# Exemplo: se seu site é joao.github.io/bot-wen
+USUARIO_GITHUB = "gjngngvb-byte"  # Coloque seu usuário do GitHub
+NOME_REPO = "WenBot_Final"      # Coloque o nome da pasta/repositório
+
+# Segredos
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-INSTA_USER = os.environ.get("INSTA_USER")
-INSTA_PASS = os.environ.get("INSTA_PASS")
-INSTA_SETTINGS = os.environ.get("INSTA_SETTINGS")
+MAKE_WEBHOOK_URL = os.environ.get("MAKE_WEBHOOK_URL")
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
 
-def log(msg):
-    print(f"[WEN BOT] {msg}")
-
 def criar_arte():
-    log("1. Inventando tema...")
+    print("1. Gerando arte...")
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-        tema = model.generate_content("Gere uma ideia visual surreal e criativa para desenho a traço. Responda APENAS o sujeito em Inglês.").text.strip()
-    except:
-        tema = "A clock melting on a tree"
+        tema = model.generate_content("Ideia visual surreal curta em Inglês.").text.strip()
+    except: tema = "Surreal object"
     
-    log(f"Tema: {tema}")
-    
-    # Prompt Estilo Caneta Preta
-    prompt = f"Hand-drawn black ballpoint pen sketch on clean white paper. Subject: {tema}. intricate details, high contrast, scribble style."
-    
-    img_data = None
-    try:
-        # Tenta Google Imagen
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key={GOOGLE_API_KEY}"
-        resp = requests.post(url, json={"instances": [{"prompt": prompt}], "parameters": {"sampleCount": 1}})
-        if resp.status_code == 200:
-            b64 = resp.json()['predictions'][0]['bytesBase64Encoded']
-            img_data = base64.b64decode(b64)
-    except: pass
-
-    if not img_data:
-        # Fallback Pollinations
-        log("Usando gerador backup...")
-        safe_prompt = urllib.parse.quote(prompt)
-        url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
-        img_data = requests.get(url_pol).content
+    # Gera imagem
+    prompt = f"Hand-drawn black ballpoint pen sketch. Subject: {tema}. intricate details."
+    safe_prompt = urllib.parse.quote(prompt)
+    url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
+    img_data = requests.get(url_pol).content
 
     with open("temp.png", "wb") as f: f.write(img_data)
     
+    # Assina
     img = Image.open("temp.png").convert("RGBA")
     bg = Image.new("RGBA", img.size, "WHITE")
     bg.paste(img, (0, 0), img)
-    
     d = ImageDraw.Draw(bg)
-    try: font = ImageFont.truetype("arial.ttf", 80)
-    except: font = ImageFont.load_default()
+    try: font = ImageFont.load_default()
+    except: pass
     
-    d.text((bg.width-220, bg.height-150), "Wen", fill="black", font=font)
+    d.text((bg.width-200, bg.height-100), "Wen", fill="black", font=font)
     bg.convert("RGB").save("wen_art.jpg", "JPEG")
     os.remove("temp.png")
     
-    try:
-        legenda = model.generate_content(f"Crie uma legenda curta e filosófica em Português sobre '{tema}'. Sem aspas. Adicione hashtags #wen #art.").text.strip()
-    except:
-        legenda = f"Arte sobre {tema}. #wen #art"
-        
-    with open("wen_art.txt", "w", encoding="utf-8") as f: f.write(legenda)
-    return "wen_art.jpg", legenda
-
-def postar(arquivo, legenda):
-    log("3. Postando no Instagram...")
-    cl = Client()
+    # Legenda
+    try: legenda = model.generate_content(f"Legenda filosófica pt-br sobre '{tema}'. #wen").text.strip()
+    except: legenda = f"Arte Wen: {tema}"
     
-    try:
-        # Tenta usar a sessão salva para evitar bloqueio
-        if INSTA_SETTINGS:
-            log("Carregando sessão salva...")
-            settings = json.loads(INSTA_SETTINGS)
-            cl.set_settings(settings)
-            cl.login(INSTA_USER, INSTA_PASS)
-        else:
-            cl.login(INSTA_USER, INSTA_PASS)
-            
-        cl.photo_upload(arquivo, caption=legenda)
-        log("✅ SUCESSO! Postado no Instagram.")
-    except Exception as e:
-        log(f"❌ Erro ao postar: {e}")
+    with open("wen_art.txt", "w", encoding="utf-8") as f: f.write(legenda)
+    return legenda
+
+def avisar_make(legenda):
+    print("2. Enviando para o Make...")
+    if not MAKE_WEBHOOK_URL:
+        print("ERRO: Link do Make não configurado.")
+        return
+
+    # Link direto da imagem no seu site
+    link_imagem = f"https://{USUARIO_GITHUB}.github.io/{NOME_REPO}/wen_art.jpg"
+    
+    # Envia os dados
+    payload = {
+        "photo_url": link_imagem,
+        "caption": legenda
+    }
+    r = requests.post(MAKE_WEBHOOK_URL, json=payload)
+    print(f"Make avisado! Código: {r.status_code}")
 
 if __name__ == "__main__":
-    try:
-        arquivo, legenda = criar_arte()
-        postar(arquivo, legenda)
-    except Exception as e:
-        log(f"Erro fatal: {e}")
+    legenda = criar_arte()
+    avisar_make(legenda)
