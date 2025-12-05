@@ -3,11 +3,11 @@ import requests
 import urllib.parse
 from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
+import time # Para garantir que o servidor de imagem não retorne a mesma foto
 
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
-# Você deve ter o arquivo desta fonte (ex: Quentin.otf) na mesma pasta do robo.py no GitHub.
-NOME_DO_ARQUIVO_FONTE = "Quentin.otf" # <-- NOME EXATO DO SEU ARQUIVO DE FONTE
-TAMANHO_DA_ASSINATURA = 100         # <-- Tamanho da fonte em pixels
+NOME_DO_ARQUIVO_FONTE = "Quentin.otf" 
+TAMANHO_DA_ASSINATURA = 60         
 # -------------------------------------
 
 # Exemplo: se seu site é gjngngvb-byte.github.io/WenBot_Final
@@ -23,13 +23,20 @@ if GOOGLE_API_KEY:
 
 def criar_arte():
     print("1. Gerando arte...")
+    # --- 1. IA INVENTA O TEMA (SEMPRE NOVO) ---
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-        tema = model.generate_content("Ideia visual surreal curta em Inglês.").text.strip()
-    except: tema = "Surreal object"
+        # Instrução da IA para criar um TEMA VISUAL novo:
+        tema = model.generate_content("Gere uma ideia visual surreal e criativa para desenho a traço. Responda APENAS o sujeito em Inglês. Sem aspas.").text.strip()
+    except: 
+        tema = "A melting clock on a floating island" # Tema de falha
     
-    # Gera imagem
-    prompt = f"Hand-drawn black ballpoint pen sketch. Subject: {tema}. intricate details."
+    # --- 2. GERA IMAGEM COM O NOVO TEMA E QUEBRA O CACHE ---
+    cache_breaker = int(time.time() * 1000) 
+    
+    # Prompt de Estilo Fixo + Tema Variável + Cache Breaker
+    prompt = f"Hand-drawn black ballpoint pen sketch on clean white paper. Subject: {tema}. intricate details, high contrast, scribble style. Unique ID: {cache_breaker}" 
+    
     safe_prompt = urllib.parse.quote(prompt)
     url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
     img_data = requests.get(url_pol).content
@@ -42,25 +49,26 @@ def criar_arte():
     bg.paste(img, (0, 0), img)
     d = ImageDraw.Draw(bg)
     
-    # --- EDIÇÃO DA FONTE AQUI ---
+    # Edição da fonte
     try: 
-        # Tenta carregar a fonte personalizada Quentin.otf
         font = ImageFont.truetype(NOME_DO_ARQUIVO_FONTE, TAMANHO_DA_ASSINATURA) 
-        print(f"Fonte {NOME_DO_ARQUIVO_FONTE} carregada com sucesso.")
+        print(f"Fonte {NOME_DO_ARQUIVO_FONTE} carregada.")
     except Exception as e: 
-        # Se falhar (por não encontrar o arquivo), usa a fonte padrão do sistema.
         font = ImageFont.load_default()
         print(f"Erro ao carregar fonte personalizada: {e}. Usando fonte padrão.")
-    # ----------------------------
 
     # Posição e texto da assinatura
     d.text((bg.width-200, bg.height-100), "Wen", fill="black", font=font)
     bg.convert("RGB").save("wen_art.jpg", "JPEG")
     os.remove("temp.png")
     
-    # Legenda
-    try: legenda = model.generate_content(f"Legenda filosófica pt-br sobre '{tema}'. #wen").text.strip()
-    except: legenda = f"Arte Wen: {tema}"
+    # --- 3. GERA A LEGENDA BASEADA NO TEMA (Sempre nova) ---
+    try: 
+        # A legenda será baseada no tema que a IA acabou de criar
+        legenda_prompt = f"Crie uma legenda curta e filosófica em Português sobre o tema visual '{tema}'. Sem aspas. Adicione hashtags #wen #art."
+        legenda = model.generate_content(legenda_prompt).text.strip()
+    except: 
+        legenda = f"Arte Wen: {tema}"
     
     with open("wen_art.txt", "w", encoding="utf-8") as f: f.write(legenda)
     return legenda
