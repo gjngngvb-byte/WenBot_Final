@@ -7,7 +7,7 @@ import google.generativeai as genai
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
 # Você deve ter o arquivo desta fonte (ex: Quentin.otf) na mesma pasta do robo.py no GitHub.
 NOME_DO_ARQUIVO_FONTE = "Quentin.otf" # <-- NOME EXATO DO SEU ARQUIVO DE FONTE
-TAMANHO_DA_ASSINATURA = 60         # <-- Tamanho da fonte em pixels
+TAMANHO_DA_ASSINATURA = 100         # <-- Tamanho da fonte em pixels
 # -------------------------------------
 
 # Exemplo: se seu site é gjngngvb-byte.github.io/WenBot_Final
