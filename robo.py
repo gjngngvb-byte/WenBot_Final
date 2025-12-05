@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
 import time 
 import random 
-import base64 # Necessário para decodificar a resposta da API do Google Imagen
+import base64 
 
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
 NOME_DO_ARQUIVO_FONTE = "Quentin.otf" 
@@ -33,54 +33,50 @@ def criar_arte():
     # --- 1. IA INVENTA O TEMA ---
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-        # Instrução AGRESSIVA: forçamos o uso do adjetivo, e pedimos um conceito novo de alta descrição.
         tema_prompt = f"Gere uma descrição visual {adjetivo_aleatorio}, surreal e altamente detalhada para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas."
         tema = model.generate_content(tema_prompt).text.strip()
     except: 
         tema = f"ERROR_FALLBACK_{int(time.time() * 1000)}" 
     
-    # --- 2. GERA IMAGEM COM O NOVO TEMA E QUEBRA O CACHE ---
+    # --- 2. GERA IMAGEM USANDO GEMINI IMAGE API (ESTÁVEL) ---
     cache_breaker = int(time.time() * 1000) 
     
-    # Prompt Completo
+    # Prompt Completo para a Geração de Imagem
     prompt = f"CacheID:{cache_breaker}. Hand-drawn black ballpoint pen sketch on clean white paper. Subject: {tema}. intricate details, high contrast, scribble style." 
     
     img_data = None
     
-    # Tenta usar a API Oficial do Google Imagen primeiro (Mais Estável)
-    print("Tentando Google Imagen...")
+    print("Tentando Gemini Image Generation...")
     try:
-        url_imagen = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key={GOOGLE_API_KEY}"
-        resp = requests.post(url_imagen, json={"instances": [{"prompt": prompt}], "parameters": {"sampleCount": 1}})
+        # Usamos o mesmo modelo de texto para gerar a imagem.
+        # Isso deve funcionar com a chave existente.
+        image_model = genai.GenerativeModel("gemini-2.5-flash-image-preview")
         
-        if resp.status_code == 200:
-            b64 = resp.json()['predictions'][0]['bytesBase64Encoded']
-            img_data = base64.b64decode(b64)
-            print("✅ Imagem gerada com sucesso pela API Google.")
-        else:
-            print(f"Erro na API Google ({resp.status_code}). Falhando para backup.")
+        response = image_model.generate_content(
+            contents=prompt,
+            config={
+                "response_mime_type": "image/jpeg",
+                "response_schema": {
+                    "type": "object",
+                    "properties": {
+                        "image": {"type": "string", "format": "byte"}
+                    }
+                }
+            }
+        )
+        
+        # A resposta da API da Google é um JSON. Pegamos o base64
+        b64 = response.candidates[0].content.parts[0].text
+        img_data = base64.b64decode(b64)
+        print("✅ Imagem gerada com sucesso pelo Gemini Image.")
             
     except Exception as e:
-        print(f"Erro ao chamar Google Imagen: {e}. Falhando para backup.")
-        
-    # --- FALLBACK: Servidor Externo (Instável, mas evita travamento) ---
-    if not img_data:
-        print("Tentando servidor externo (Pollinations)...")
-        safe_prompt = urllib.parse.quote(prompt)
-        url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
-        
-        # O código agora usa .content se o status for 200.
-        r = requests.get(url_pol)
-        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
-             img_data = r.content
-             print("✅ Imagem gerada com sucesso pelo backup.")
-        else:
-             # Se o backup FALHAR, cria uma imagem preta para evitar o erro de arquivo
-             print("❌ Falha crítica em todos os geradores. Criando placeholder preto.")
-             img_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00@\x00\x00\x00@\x08\x02\x00\x00\x00\x91\xe7\x04\xfb\x00\x00\x00\x06IDAT\x18\x57c\xfc\xff\x0f\x00\x06\x1a\x02\x87\x00\x00\x00\x00IEND\xaeB`\x82' # PNG 64x64 preto
-             tema = "Placeholder. Failed to generate image."
+        print(f"❌ Erro ao chamar Gemini Image: {e}. Criando placeholder preto.")
+        # Se falhar, cria uma imagem preta para evitar o erro de arquivo (travar a PIL)
+        img_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00@\x00\x00\x00@\x08\x02\x00\x00\x00\x91\xe7\x04\xfb\x00\x00\x00\x06IDAT\x18\x57c\xfc\xff\x0f\x00\x06\x1a\x02\x87\x00\x00\x00\x00IEND\xaeB`\x82'
+        tema = "Placeholder. Failed to generate image."
 
-    # --- SALVAR E PROCESSAR (AGORA TEMOS CERTEZA QUE img_data NÃO ESTÁ VAZIO) ---
+    # --- SALVAR E PROCESSAR (AGORA TEMOS CERTEZA QUE img_data É UMA IMAGEM VÁLIDA) ---
     with open("temp.png", "wb") as f: f.write(img_data)
     
     # A linha que estava falhando antes (Linha 56)
