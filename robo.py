@@ -4,7 +4,7 @@ import urllib.parse
 from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
 import time 
-import random # <--- NOVO: Para aleatoriedade extrema
+import random 
 
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
 NOME_DO_ARQUIVO_FONTE = "Quentin.otf" 
@@ -26,22 +26,24 @@ def criar_arte():
     print("1. Gerando arte...")
     
     # Lista de adjetivos para forçar a mudança de conceito na IA
-    adjetivos = ["absurdo", "paradoxal", "etérea", "submerso", "cibernético", "onírico", "vintage", "vaporoso"]
+    adjetivos = ["absurdo", "paradoxal", "etérea", "submerso", "cibernético", "onírico", "vintage", "vaporoso", "distópico", "utópico", "bioluminescente"]
     adjetivo_aleatorio = random.choice(adjetivos)
     
-    # --- 1. IA INVENTA O TEMA (AGORA MAIS FORÇADO) ---
+    # --- 1. IA INVENTA O TEMA (SEM FALHA FIXA) ---
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-        # Instrução AGRESSIVA: forçamos o uso do adjetivo e pedimos um conceito novo
+        # Instrução AGRESSIVA: forçamos o uso do adjetivo, e pedimos um conceito novo de alta descrição.
         tema_prompt = f"Gere uma descrição visual {adjetivo_aleatorio}, surreal e altamente detalhada para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas."
         tema = model.generate_content(tema_prompt).text.strip()
     except: 
-        tema = "A melting clock on a floating island"
+        # Se a IA FALHAR (muito raro), geramos um ID de erro aleatório que muda a imagem.
+        tema = f"ERROR_FALLBACK_{int(time.time() * 1000)}" 
     
     # --- 2. GERA IMAGEM COM O NOVO TEMA E QUEBRA O CACHE ---
     cache_breaker = int(time.time() * 1000) 
     
     # Adicionamos o cache_breaker no início e usamos o tema mais longo
+    # A IA de imagem é FORÇADA a mudar porque o tema e o cache ID são diferentes.
     prompt = f"CacheID:{cache_breaker}. Hand-drawn black ballpoint pen sketch on clean white paper. Subject: {tema}. intricate details, high contrast, scribble style." 
     
     safe_prompt = urllib.parse.quote(prompt)
@@ -71,6 +73,7 @@ def criar_arte():
     
     # --- 3. GERA A LEGENDA BASEADA NO TEMA (Sempre nova) ---
     try: 
+        # A legenda será baseada no tema que a IA acabou de criar
         legenda_prompt = f"Crie uma legenda curta e filosófica em Português sobre o tema visual '{tema}'. Sem aspas. Adicione hashtags #wen #art."
         legenda = model.generate_content(legenda_prompt).text.strip()
     except: 
