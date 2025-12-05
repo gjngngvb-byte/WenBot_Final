@@ -36,6 +36,7 @@ def criar_arte():
         tema_prompt = f"Gere uma descrição visual {adjetivo_aleatorio}, surreal e altamente detalhada para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas."
         tema = model.generate_content(tema_prompt).text.strip()
     except: 
+        # Fallback de tempo, garantindo que o prompt será sempre único.
         tema = f"ERROR_FALLBACK_{int(time.time() * 1000)}" 
     
     # --- 2. GERA IMAGEM USANDO GEMINI IMAGE API (ESTÁVEL) ---
@@ -48,38 +49,35 @@ def criar_arte():
     
     print("Tentando Gemini Image Generation...")
     try:
-        # Usamos o mesmo modelo de texto para gerar a imagem.
-        # Isso deve funcionar com a chave existente.
         image_model = genai.GenerativeModel("gemini-2.5-flash-image-preview")
         
-        response = image_model.generate_content(
-            contents=prompt,
-            config={
-                "response_mime_type": "image/jpeg",
-                "response_schema": {
-                    "type": "object",
-                    "properties": {
-                        "image": {"type": "string", "format": "byte"}
-                    }
-                }
-            }
-        )
+        # Chamada SIMPLIFICADA (Sem o 'config' que estava dando erro)
+        response = image_model.generate_content(prompt)
         
-        # A resposta da API da Google é um JSON. Pegamos o base64
-        b64 = response.candidates[0].content.parts[0].text
-        img_data = base64.b64decode(b64)
-        print("✅ Imagem gerada com sucesso pelo Gemini Image.")
-            
+        b64 = None
+        # Procura o Base64 da imagem na resposta da API
+        if response.candidates and response.candidates[0].content.parts:
+             for part in response.candidates[0].content.parts:
+                 if part.get('inlineData') and part['inlineData'].get('data'):
+                     b64 = part['inlineData']['data']
+                     break
+        
+        if b64:
+             img_data = base64.b64decode(b64)
+             print("✅ Imagem gerada com sucesso pelo Gemini Image.")
+        else:
+             raise Exception("Resposta da API de Imagem não continha Base64 válido.")
+             
     except Exception as e:
         print(f"❌ Erro ao chamar Gemini Image: {e}. Criando placeholder preto.")
         # Se falhar, cria uma imagem preta para evitar o erro de arquivo (travar a PIL)
         img_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00@\x00\x00\x00@\x08\x02\x00\x00\x00\x91\xe7\x04\xfb\x00\x00\x00\x06IDAT\x18\x57c\xfc\xff\x0f\x00\x06\x1a\x02\x87\x00\x00\x00\x00IEND\xaeB`\x82'
         tema = "Placeholder. Failed to generate image."
 
-    # --- SALVAR E PROCESSAR (AGORA TEMOS CERTEZA QUE img_data É UMA IMAGEM VÁLIDA) ---
+    # --- SALVAR E PROCESSAR (AQUI GARANTIMOS QUE O PROCESSO NÃO TRAVA) ---
     with open("temp.png", "wb") as f: f.write(img_data)
     
-    # A linha que estava falhando antes (Linha 56)
+    # A linha que estava falhando antes agora recebe dados de imagem válidos.
     img = Image.open("temp.png").convert("RGBA") 
     
     # Assina
