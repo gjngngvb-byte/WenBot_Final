@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
 import time 
 import random 
+import base64 # Necessário para decodificar a resposta da API do Google Imagen
 
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
 NOME_DO_ARQUIVO_FONTE = "Quentin.otf" 
@@ -29,31 +30,63 @@ def criar_arte():
     adjetivos = ["absurdo", "paradoxal", "etérea", "submerso", "cibernético", "onírico", "vintage", "vaporoso", "distópico", "utópico", "bioluminescente"]
     adjetivo_aleatorio = random.choice(adjetivos)
     
-    # --- 1. IA INVENTA O TEMA (SEM FALHA FIXA) ---
+    # --- 1. IA INVENTA O TEMA ---
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
         # Instrução AGRESSIVA: forçamos o uso do adjetivo, e pedimos um conceito novo de alta descrição.
         tema_prompt = f"Gere uma descrição visual {adjetivo_aleatorio}, surreal e altamente detalhada para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas."
         tema = model.generate_content(tema_prompt).text.strip()
     except: 
-        # Se a IA FALHAR (muito raro), geramos um ID de erro aleatório que muda a imagem.
         tema = f"ERROR_FALLBACK_{int(time.time() * 1000)}" 
     
     # --- 2. GERA IMAGEM COM O NOVO TEMA E QUEBRA O CACHE ---
     cache_breaker = int(time.time() * 1000) 
     
-    # Adicionamos o cache_breaker no início e usamos o tema mais longo
-    # A IA de imagem é FORÇADA a mudar porque o tema e o cache ID são diferentes.
+    # Prompt Completo
     prompt = f"CacheID:{cache_breaker}. Hand-drawn black ballpoint pen sketch on clean white paper. Subject: {tema}. intricate details, high contrast, scribble style." 
     
-    safe_prompt = urllib.parse.quote(prompt)
-    url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
-    img_data = requests.get(url_pol).content
+    img_data = None
+    
+    # Tenta usar a API Oficial do Google Imagen primeiro (Mais Estável)
+    print("Tentando Google Imagen...")
+    try:
+        url_imagen = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key={GOOGLE_API_KEY}"
+        resp = requests.post(url_imagen, json={"instances": [{"prompt": prompt}], "parameters": {"sampleCount": 1}})
+        
+        if resp.status_code == 200:
+            b64 = resp.json()['predictions'][0]['bytesBase64Encoded']
+            img_data = base64.b64decode(b64)
+            print("✅ Imagem gerada com sucesso pela API Google.")
+        else:
+            print(f"Erro na API Google ({resp.status_code}). Falhando para backup.")
+            
+    except Exception as e:
+        print(f"Erro ao chamar Google Imagen: {e}. Falhando para backup.")
+        
+    # --- FALLBACK: Servidor Externo (Instável, mas evita travamento) ---
+    if not img_data:
+        print("Tentando servidor externo (Pollinations)...")
+        safe_prompt = urllib.parse.quote(prompt)
+        url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
+        
+        # O código agora usa .content se o status for 200.
+        r = requests.get(url_pol)
+        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
+             img_data = r.content
+             print("✅ Imagem gerada com sucesso pelo backup.")
+        else:
+             # Se o backup FALHAR, cria uma imagem preta para evitar o erro de arquivo
+             print("❌ Falha crítica em todos os geradores. Criando placeholder preto.")
+             img_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00@\x00\x00\x00@\x08\x02\x00\x00\x00\x91\xe7\x04\xfb\x00\x00\x00\x06IDAT\x18\x57c\xfc\xff\x0f\x00\x06\x1a\x02\x87\x00\x00\x00\x00IEND\xaeB`\x82' # PNG 64x64 preto
+             tema = "Placeholder. Failed to generate image."
 
+    # --- SALVAR E PROCESSAR (AGORA TEMOS CERTEZA QUE img_data NÃO ESTÁ VAZIO) ---
     with open("temp.png", "wb") as f: f.write(img_data)
     
+    # A linha que estava falhando antes (Linha 56)
+    img = Image.open("temp.png").convert("RGBA") 
+    
     # Assina
-    img = Image.open("temp.png").convert("RGBA")
     bg = Image.new("RGBA", img.size, "WHITE")
     bg.paste(img, (0, 0), img)
     d = ImageDraw.Draw(bg)
@@ -71,9 +104,8 @@ def criar_arte():
     bg.convert("RGB").save("wen_art.jpg", "JPEG")
     os.remove("temp.png")
     
-    # --- 3. GERA A LEGENDA BASEADA NO TEMA (Sempre nova) ---
+    # --- GERA A LEGENDA BASEADA NO TEMA ---
     try: 
-        # A legenda será baseada no tema que a IA acabou de criar
         legenda_prompt = f"Crie uma legenda curta e filosófica em Português sobre o tema visual '{tema}'. Sem aspas. Adicione hashtags #wen #art."
         legenda = model.generate_content(legenda_prompt).text.strip()
     except: 
