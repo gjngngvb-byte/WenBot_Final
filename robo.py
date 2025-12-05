@@ -23,19 +23,19 @@ if GOOGLE_API_KEY:
 
 def criar_arte():
     print("1. Gerando arte...")
-    # --- 1. IA INVENTA O TEMA (SEMPRE NOVO) ---
+    # --- 1. IA INVENTA O TEMA (AGORA MAIS DESCRITIVO) ---
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-        # Instrução da IA para criar um TEMA VISUAL novo:
-        tema = model.generate_content("Gere uma ideia visual surreal e criativa para desenho a traço. Responda APENAS o sujeito em Inglês. Sem aspas.").text.strip()
+        # Instrução da IA para criar um TEMA VISUAL novo (mais complexo para evitar cache):
+        tema = model.generate_content("Gere uma descrição visual surreal, altamente detalhada e única para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas.").text.strip()
     except: 
         tema = "A melting clock on a floating island" # Tema de falha
     
     # --- 2. GERA IMAGEM COM O NOVO TEMA E QUEBRA O CACHE ---
     cache_breaker = int(time.time() * 1000) 
     
-    # Prompt de Estilo Fixo + Tema Variável + Cache Breaker
-    prompt = f"Hand-drawn black ballpoint pen sketch on clean white paper. Subject: {tema}. intricate details, high contrast, scribble style. Unique ID: {cache_breaker}" 
+    # Adicionamos o cache_breaker no início e usamos o tema mais longo
+    prompt = f"CacheID:{cache_breaker}. Hand-drawn black ballpoint pen sketch on clean white paper. Subject: {tema}. intricate details, high contrast, scribble style." 
     
     safe_prompt = urllib.parse.quote(prompt)
     url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
