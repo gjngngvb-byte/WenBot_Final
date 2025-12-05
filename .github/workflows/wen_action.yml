@@ -26,8 +26,7 @@ jobs:
       - name: Rodar o Robô
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          INSTA_USER: ${{ secrets.INSTA_USER }}
-          INSTA_PASS: ${{ secrets.INSTA_PASS }}
+          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}  # <--- ESSA LINHA FALTAVA!
         run: python robo.py
 
       - name: Salvar Arte no Git
