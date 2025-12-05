@@ -5,9 +5,14 @@ from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
 
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
-# Exemplo: se seu site é joao.github.io/bot-wen
-USUARIO_GITHUB = "gjngngvb-byte"  # Coloque seu usuário do GitHub
-NOME_REPO = "WenBot_Final"      # Coloque o nome da pasta/repositório
+# Você deve ter o arquivo desta fonte (ex: Quentin.otf) na mesma pasta do robo.py no GitHub.
+NOME_DO_ARQUIVO_FONTE = "Quentin.otf" # <-- NOME EXATO DO SEU ARQUIVO DE FONTE
+TAMANHO_DA_ASSINATURA = 60         # <-- Tamanho da fonte em pixels
+# -------------------------------------
+
+# Exemplo: se seu site é gjngngvb-byte.github.io/WenBot_Final
+USUARIO_GITHUB = "gjngngvb-byte"  
+NOME_REPO = "WenBot_Final"      
 
 # Segredos
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
@@ -36,9 +41,19 @@ def criar_arte():
     bg = Image.new("RGBA", img.size, "WHITE")
     bg.paste(img, (0, 0), img)
     d = ImageDraw.Draw(bg)
-    try: font = ImageFont.load_default()
-    except: pass
     
+    # --- EDIÇÃO DA FONTE AQUI ---
+    try: 
+        # Tenta carregar a fonte personalizada Quentin.otf
+        font = ImageFont.truetype(NOME_DO_ARQUIVO_FONTE, TAMANHO_DA_ASSINATURA) 
+        print(f"Fonte {NOME_DO_ARQUIVO_FONTE} carregada com sucesso.")
+    except Exception as e: 
+        # Se falhar (por não encontrar o arquivo), usa a fonte padrão do sistema.
+        font = ImageFont.load_default()
+        print(f"Erro ao carregar fonte personalizada: {e}. Usando fonte padrão.")
+    # ----------------------------
+
+    # Posição e texto da assinatura
     d.text((bg.width-200, bg.height-100), "Wen", fill="black", font=font)
     bg.convert("RGB").save("wen_art.jpg", "JPEG")
     os.remove("temp.png")
