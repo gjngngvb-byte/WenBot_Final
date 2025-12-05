@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
 import time 
 import random 
-import base64 
+import io # Importação para lidar com dados de imagem em memória
 
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
 NOME_DO_ARQUIVO_FONTE = "Quentin.otf" 
@@ -30,16 +30,15 @@ def criar_arte():
     adjetivos = ["absurdo", "paradoxal", "etérea", "submerso", "cibernético", "onírico", "vintage", "vaporoso", "distópico", "utópico", "bioluminescente"]
     adjetivo_aleatorio = random.choice(adjetivos)
     
-    # --- 1. IA INVENTA O TEMA (TEXTO) ---
+    # --- 1. IA INVENTA O TEMA ---
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-        # Instrução AGRESSIVA: forçamos o uso do adjetivo, e pedimos um conceito novo de alta descrição.
         tema_prompt = f"Gere uma descrição visual {adjetivo_aleatorio}, surreal e altamente detalhada para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas."
         tema = model.generate_content(tema_prompt).text.strip()
     except: 
         tema = f"ERROR_FALLBACK_{int(time.time() * 1000)}" 
     
-    # --- 2. GERA IMAGEM USANDO NOVO SERVIDOR (COM TRATAMENTO DE ERRO) ---
+    # --- 2. GERA IMAGEM COM MÁXIMA ESTABILIDADE ---
     cache_breaker = int(time.time() * 1000) 
     
     # Prompt Completo
@@ -47,31 +46,30 @@ def criar_arte():
     
     img_data = None
     
-    print("Tentando novo servidor externo (Lexica Art)...")
+    print("Tentando servidor externo (Pollinations - O original) com tratamento de erro...")
     try:
         safe_prompt = urllib.parse.quote(prompt)
-        # Novo endpoint de geração de imagem
-        url_lexica = f"https://image.lexica.art/full_generated/{safe_prompt}"
+        url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
         
-        # Faz a requisição e verifica se é uma imagem válida (para evitar o erro PIL)
-        r = requests.get(url_lexica, allow_redirects=True)
+        # Faz a requisição e verifica se é uma imagem válida
+        r = requests.get(url_pol, stream=True, timeout=15)
+        
         if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
              img_data = r.content
-             print("✅ Imagem gerada com sucesso pelo Lexica Art.")
+             print("✅ Imagem gerada com sucesso pelo backup.")
         else:
-             raise Exception(f"Lexica Art retornou código: {r.status_code}.")
+             # Se o servidor responder com erro ou HTML, forçamos a falha.
+             raise Exception(f"Servidor retornou código: {r.status_code}.")
              
     except Exception as e:
-        print(f"❌ Erro ao gerar imagem: {e}. Criando placeholder preto.")
-        # Se falhar, cria uma imagem preta (PNG válido) para evitar que o código trave na linha Image.open()
+        print(f"❌ Erro ao gerar desenho: {e}. Criando placeholder preto estável.")
+        # SE FALHAR, cria uma imagem preta (PNG válido) que a PIL pode abrir 
         img_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00@\x00\x00\x00@\x08\x02\x00\x00\x00\x91\xe7\x04\xfb\x00\x00\x00\x06IDAT\x18\x57c\xfc\xff\x0f\x00\x06\x1a\x02\x87\x00\x00\x00\x00IEND\xaeB`\x82'
-        tema = "Placeholder. Failed to generate image."
+        tema = "Placeholder. Falha ao gerar desenho. #DEBUG"
 
-    # --- SALVAR E PROCESSAR (AGORA TEMOS CERTEZA QUE img_data É UMA IMAGEM VÁLIDA) ---
-    with open("temp.png", "wb") as f: f.write(img_data)
-    
-    # Esta linha não deve mais falhar
-    img = Image.open("temp.png").convert("RGBA") 
+    # --- SALVAR E PROCESSAR (NÃO TRAVA) ---
+    # Usamos io.BytesIO para garantir que a PIL abra os dados da memória, e não do arquivo.
+    img = Image.open(io.BytesIO(img_data)).convert("RGBA")
     
     # Assina
     bg = Image.new("RGBA", img.size, "WHITE")
@@ -89,7 +87,6 @@ def criar_arte():
     # Posição e texto da assinatura
     d.text((bg.width-200, bg.height-100), "Wen", fill="black", font=font)
     bg.convert("RGB").save("wen_art.jpg", "JPEG")
-    os.remove("temp.png")
     
     # --- GERA A LEGENDA BASEADA NO TEMA ---
     try: 
