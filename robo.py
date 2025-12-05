@@ -3,7 +3,8 @@ import requests
 import urllib.parse
 from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
-import time # Para garantir que o servidor de imagem não retorne a mesma foto
+import time 
+import random # <--- NOVO: Para aleatoriedade extrema
 
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
 NOME_DO_ARQUIVO_FONTE = "Quentin.otf" 
@@ -23,13 +24,19 @@ if GOOGLE_API_KEY:
 
 def criar_arte():
     print("1. Gerando arte...")
-    # --- 1. IA INVENTA O TEMA (AGORA MAIS DESCRITIVO) ---
+    
+    # Lista de adjetivos para forçar a mudança de conceito na IA
+    adjetivos = ["absurdo", "paradoxal", "etérea", "submerso", "cibernético", "onírico", "vintage", "vaporoso"]
+    adjetivo_aleatorio = random.choice(adjetivos)
+    
+    # --- 1. IA INVENTA O TEMA (AGORA MAIS FORÇADO) ---
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-        # Instrução da IA para criar um TEMA VISUAL novo (mais complexo para evitar cache):
-        tema = model.generate_content("Gere uma descrição visual surreal, altamente detalhada e única para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas.").text.strip()
+        # Instrução AGRESSIVA: forçamos o uso do adjetivo e pedimos um conceito novo
+        tema_prompt = f"Gere uma descrição visual {adjetivo_aleatorio}, surreal e altamente detalhada para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas."
+        tema = model.generate_content(tema_prompt).text.strip()
     except: 
-        tema = "A melting clock on a floating island" # Tema de falha
+        tema = "A melting clock on a floating island"
     
     # --- 2. GERA IMAGEM COM O NOVO TEMA E QUEBRA O CACHE ---
     cache_breaker = int(time.time() * 1000) 
@@ -64,7 +71,6 @@ def criar_arte():
     
     # --- 3. GERA A LEGENDA BASEADA NO TEMA (Sempre nova) ---
     try: 
-        # A legenda será baseada no tema que a IA acabou de criar
         legenda_prompt = f"Crie uma legenda curta e filosófica em Português sobre o tema visual '{tema}'. Sem aspas. Adicione hashtags #wen #art."
         legenda = model.generate_content(legenda_prompt).text.strip()
     except: 
