@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
 import time 
 import random 
-import io # Importação para lidar com dados de imagem em memória
+import io # Para lidar com dados de imagem na memória
 
 # --- CONFIGURAÇÕES (PREENCHA AQUI) ---
 NOME_DO_ARQUIVO_FONTE = "Quentin.otf" 
@@ -19,6 +19,11 @@ NOME_REPO = "WenBot_Final"
 # Segredos
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 MAKE_WEBHOOK_URL = os.environ.get("MAKE_WEBHOOK_URL")
+REPLICATE_API_TOKEN = os.environ.get("REPLICATE_API_TOKEN") # Token do Replicate
+
+# Modelo Stable Diffusion para desenho a traço no Replicate
+REPLICATE_MODEL_ID = "stability-ai/stable-diffusion:ac732df83aa6074768996774158491160fd2dc78440be58ffc6a77072e5d856d"
+
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
@@ -30,7 +35,7 @@ def criar_arte():
     adjetivos = ["absurdo", "paradoxal", "etérea", "submerso", "cibernético", "onírico", "vintage", "vaporoso", "distópico", "utópico", "bioluminescente"]
     adjetivo_aleatorio = random.choice(adjetivos)
     
-    # --- 1. IA INVENTA O TEMA ---
+    # --- 1. IA INVENTA O TEMA (TEXTO) ---
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
         tema_prompt = f"Gere uma descrição visual {adjetivo_aleatorio}, surreal e altamente detalhada para desenho a traço. Responda APENAS a descrição em Inglês. Sem aspas."
@@ -38,37 +43,76 @@ def criar_arte():
     except: 
         tema = f"ERROR_FALLBACK_{int(time.time() * 1000)}" 
     
-    # --- 2. GERA IMAGEM COM MÁXIMA ESTABILIDADE ---
+    # --- 2. GERA IMAGEM COM REPLICATE API (ESTÁVEL) ---
     cache_breaker = int(time.time() * 1000) 
     
     # Prompt Completo
-    prompt = f"CacheID:{cache_breaker}. Hand-drawn black ballpoint pen sketch on clean white paper. Subject: {tema}. intricate details, high contrast, scribble style." 
+    prompt = f"detailed line art sketch, black pen on white paper. Subject: {tema}. high contrast, monochrome. Art Style: {cache_breaker}" 
     
     img_data = None
     
-    print("Tentando servidor externo (Pollinations - O original) com tratamento de erro...")
+    print("Tentando Replicate API...")
     try:
-        safe_prompt = urllib.parse.quote(prompt)
-        url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&model=flux"
+        headers = {
+            "Authorization": f"Token {REPLICATE_API_TOKEN}",
+            "Content-Type": "application/json"
+        }
         
-        # Faz a requisição e verifica se é uma imagem válida
-        r = requests.get(url_pol, stream=True, timeout=15)
-        
-        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
-             img_data = r.content
-             print("✅ Imagem gerada com sucesso pelo backup.")
+        # O Replicate é síncrono. Tentamos gerar e buscar em uma requisição.
+        response = requests.post(
+            f"https://api.replicate.com/v1/predictions",
+            headers=headers,
+            json={
+                "version": REPLICATE_MODEL_ID,
+                "input": {
+                    "prompt": prompt,
+                    "image_dimensions": "1024x1024",
+                    "num_outputs": 1,
+                    "num_inference_steps": 25 # Velocidade
+                }
+            },
+            timeout=40 # Damos mais tempo, pois a geração é lenta
+        )
+
+        if response.status_code != 201:
+            raise Exception(f"Erro ao iniciar geração. Código: {response.status_code}. {response.text[:100]}")
+
+        # O Replicate retorna um link de status, não a imagem. Precisamos do link de status.
+        prediction_url = response.json().get('urls', {}).get('get')
+        if not prediction_url:
+             raise Exception("Não consegui obter o URL de status da predição.")
+
+        # Polling: Espera a imagem ser gerada
+        print("Aguardando geração da imagem (pode levar 20s)...")
+        for _ in range(20): # Tenta 20 vezes (total 40 segundos)
+            time.sleep(2)
+            status_response = requests.get(prediction_url, headers=headers)
+            status_data = status_response.json()
+
+            if status_data.get('status') == 'succeeded':
+                image_url = status_data.get('output')[0]
+                break
+
+            if status_data.get('status') in ['failed', 'canceled']:
+                raise Exception(f"Geração falhou: {status_data.get('error')}")
         else:
-             # Se o servidor responder com erro ou HTML, forçamos a falha.
-             raise Exception(f"Servidor retornou código: {r.status_code}.")
+             raise Exception("Timeout: Geração do Replicate demorou demais.")
+        
+        # Baixa a imagem gerada
+        img_response = requests.get(image_url)
+        if img_response.status_code == 200:
+            img_data = img_response.content
+            print("✅ Imagem gerada com sucesso pelo Replicate.")
+        else:
+            raise Exception(f"Falha ao baixar imagem. Código: {img_response.status_code}")
              
     except Exception as e:
         print(f"❌ Erro ao gerar desenho: {e}. Criando placeholder preto estável.")
-        # SE FALHAR, cria uma imagem preta (PNG válido) que a PIL pode abrir 
+        # Se falhar, cria uma imagem preta (PNG válido) que a PIL pode abrir 
         img_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00@\x00\x00\x00@\x08\x02\x00\x00\x00\x91\xe7\x04\xfb\x00\x00\x00\x06IDAT\x18\x57c\xfc\xff\x0f\x00\x06\x1a\x02\x87\x00\x00\x00\x00IEND\xaeB`\x82'
         tema = "Placeholder. Falha ao gerar desenho. #DEBUG"
 
     # --- SALVAR E PROCESSAR (NÃO TRAVA) ---
-    # Usamos io.BytesIO para garantir que a PIL abra os dados da memória, e não do arquivo.
     img = Image.open(io.BytesIO(img_data)).convert("RGBA")
     
     # Assina
