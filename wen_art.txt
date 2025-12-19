@@ -1,46 +1,6 @@
-SILENT THINKING:
+O código se recusa a ser forma.
+Neste instante, a paisagem é o erro.
+O algoritmo hesitou, mas há beleza
+No abismo breve que não pôde nascer.
 
-1.  **Analyze the Visual Theme:**
-    *   *Object:* Colossal, inverted spire (agulha/pináculo), desiccated clockwork brass (latão de maquinário ressecado), segmented joints (juntas segmentadas), grace of giant sea cucumber spines (graciosidade porosa de pepinos-do-mar gigantes).
-    *   *Setting:* Pressurized floor of crystallized Martian dust (piso pressurizado de poeira marciana cristalizada).
-    *   *Lighting/Atmosphere:* Filamentous shadows (sombras filamentosas) cast by bioluminescent mosses (musgos bioluminescentes) that bloom *only when* [the condition is cut off, adding mystery].
-
-2.  **Determine the Atmosphere/Tone:**
-    *   The combination of ancient, huge machinery (clockwork brass), extreme environment (Mars, crystallized dust, pressurized), and ephemeral, glowing life (bioluminescent mosses) creates a tone that is:
-        *   Profoundly alien.
-        *   Ancient/Ruined but mechanically precise.
-        *   Magical and mysterious (due to the bioluminescence and the cut-off condition).
-    *   *Tone:* Sublime, Arcaico, Silencioso, Profundo.
-
-3.  **Drafting the Caption (Max 4 lines, Poetic, Deep):**
-    *   *Focus on the contrast:* Heavy brass vs. light moss/shadows; Time (clockwork) vs. Eternity (Mars/Spire).
-    *   *Attempt 1 (Focus on Dust/Time):* Latão antigo perfura o pó de Marte em silêncio. Um gigante dorme, sua contagem de tempo suspensa. Sombras filamentosas desenham a pausa da vida. Onde o musgo floresce, a gravidade se torna reza. (Too long, slightly verbose).
-    *   *Attempt 2 (Focus on Spire/Mystery):* A espiral invertida, latão e espinhos. Um eco do tempo, articulado no vácuo vermelho. Sombras líquidas bailam onde o musgo espera. O mecanismo só pulsa quando a luz cede. (Better structure, good contrast).
-    *   *Attempt 3 (Refining Attempt 2 - Final Polish):*
-        Pináculo de latão no sono marciano.
-        Junta porosa, memória de um tempo extinto.
-        O chão pressurizado tece a sombra filamentosa.
-        O musgo só acende ao toque do mistério.
-
-4.  **Final Check against Constraints:**
-    *   Poetic/Deep? Yes.
-    *   Reflects atmosphere? Yes (Ancient, Mysterious, Bioluminescent).
-    *   Maximum 4 lines? Yes.
-    *   No quotes? Yes.
-
-5.  **Create Hashtags (3, Portuguese, describing the object):**
-    *   Clockwork Spire: #EspiralMecânica
-    *   Martian/Brass: #LatãoMarciano
-    *   Sea Cucumber/Structure: #Biomecânica
-
-6.  **Final Output Assembly.** (Including required ending #wen #art). (Self-correction: Ensure the language sounds fluidly Brazilian Portuguese).
-
-*(A espiral de latão e espinhos, articulada no sono marciano.
-O chão pressurizado tece a sombra filamentosa.
-Junta porosa, memória de um tempo extinto.
-O musgo só acende ao toque do mistério.)* This is perfect. (4 lines).
-Pináculo de latão no sono marciano.
-Junta porosa, memória de um tempo extinto.
-O chão pressurizado tece a sombra filamentosa.
-O musgo só acende ao toque do mistério.
-#EspiralMecânica #LatãoMarciano #Biomecânica #wen #art
+#FalhaGenerativa #GlitchEstético #VazioDigital #wen #art
