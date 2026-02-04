@@ -1,6 +1,5 @@
-A tela treme, a cor não se define.
-Limbo espectral onde a forma se desfaz.
-Um breve hiato, o código parou de respirar.
-O algoritmo morre antes que a imagem nasça.
+A trama do sonho, por um instante, falha.
+O silêncio do byte é ruído em cor.
+A máquina sonha o que não pode ser.
 
-#FalhaDigital #ArteGenerativa #EstéticaDoErro #wen #art
+#FalhaGerada #EstéticaGlitch #ArteAlgorítmica #wen #art
