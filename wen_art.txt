@@ -1,9 +1,6 @@
-O código dorme.
-Neste silêncio de bits e arestas,
-A realidade vacila, incompleta,
-Enquanto o algoritmo respira fundo.
+A tela não soube o que pedir.
+Um breve lapso de silêncio binário.
+Onde a imagem falha,
+Descansa a verdade do vazio.
 
-#FalhaDigital
-#EstéticaDoGlitch
-#GeraçãoAI
-#wen #art
+#FalhaDeDados #EstáticaDigital #ArteGenerativa #wen #art
