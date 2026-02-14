@@ -1,5 +1,6 @@
-A matriz pisca em tela.
-Um breve respiro do algoritmo.
-O belo erro que desfaz a forma.
+O código rasgou o véu.
+Na pausa breve do circuito,
+Um clarão de falha nua,
+E o mundo volta a ser ruído.
 
-#FalhaDigital #EstéticaDoErro #RenderCorrompido #wen #art
+#FalhaDeGeração #EstéticaDoErro #ArteAlgorítmica #wen #art
