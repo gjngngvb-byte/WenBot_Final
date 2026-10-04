@@ -2,8 +2,8 @@ name: Bot Wen Instagram
 
 on:
   schedule:
-    - cron: '0 */5 * * *' # Roda a cada 5 horas
-  workflow_dispatch: # Botão para rodar manual
+    - cron: "0 */5 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,26 +13,62 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Instalar Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.11"
 
       - name: Instalar bibliotecas
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Rodar o Robô
+      - name: Gerar arte e legenda
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}  # <--- ESSA LINHA FALTAVA!
         run: python robo.py
 
-      - name: Salvar Arte no Git
+      - name: Salvar arte no Git
         run: |
-          git config --global user.name 'Wen Bot'
-          git config --global user.email 'bot@wen.com'
-          git add wen_art.jpg wen_art.txt
+          git config user.name "Wen Bot"
+          git config user.email "bot@wen.com"
+          git add wen_art.jpg wen_art.txt wen_art_idea.txt
           git commit -m "Nova arte gerada" || exit 0
           git push
+
+      - name: Aguardar GitHub Pages atualizar
+        run: |
+          for i in {1..12}; do
+            CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "https://gjngngvb-byte.github.io/WenBot_Final/wen_art.jpg?v=$GITHUB_RUN_ID-$i")
+            echo "Tentativa $i: HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              break
+            fi
+            sleep 10
+          done
+          sleep 20
+
+      - name: Publicar no Instagram via Make
+        env:
+          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
+        run: |
+          python - <<'PY'
+          import os
+          import time
+          import requests
+
+          webhook = os.environ.get("MAKE_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit("MAKE_WEBHOOK_URL não configurada.")
+
+          with open("wen_art.txt", "r", encoding="utf-8") as f:
+              legenda = f.read().strip()
+
+          imagem = f"https://gjngngvb-byte.github.io/WenBot_Final/wen_art.jpg?v={int(time.time())}"
+          resposta = requests.post(webhook, json={"photo_url": imagem, "caption": legenda}, timeout=60)
+          print("Make:", resposta.status_code)
+          print(resposta.text[:1000])
+          resposta.raise_for_status()
+          PY
