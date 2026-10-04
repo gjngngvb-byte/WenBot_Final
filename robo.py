@@ -1,137 +1,147 @@
+import io
 import os
-import requests
+import random
 import urllib.parse
+
+import requests
 from PIL import Image, ImageDraw, ImageFont
-import google.generativeai as genai
-import time 
-import random 
-import io 
+from google import genai
 
-# --- CONFIGURAÇÕES (PREENCHA AQUI) ---
-NOME_DO_ARQUIVO_FONTE = "Quentin.otf" 
-TAMANHO_DA_ASSINATURA = 60         
-# -------------------------------------
-
-# Exemplo: se seu site é gjngngvb-byte.github.io/WenBot_Final
-USUARIO_GITHUB = "gjngngvb-byte"  
-NOME_REPO = "WenBot_Final"      
-
-# Segredos
+USUARIO_GITHUB = "gjngngvb-byte"
+NOME_REPO = "WenBot_Final"
+NOME_DO_ARQUIVO_FONTE = "Quentin.otf"
+TAMANHO_DA_ASSINATURA = 60
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-MAKE_WEBHOOK_URL = os.environ.get("MAKE_WEBHOOK_URL")
+GEMINI_MODEL = "gemini-3.8-flash"
 
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
+if not GOOGLE_API_KEY:
+    raise RuntimeError("GOOGLE_API_KEY não configurada.")
 
-# Lista de backup MÍNIMA
-FALLBACK_SIMPLE = "A giant ancient tree floating in void"
+client = genai.Client(api_key=GOOGLE_API_KEY)
+
+ASSUNTOS = [
+    "an impossible animal combining two unrelated creatures",
+    "an everyday object behaving like a living creature",
+    "a strange machine with an impossible purpose",
+    "a surreal building that could not exist in the real world",
+    "a mysterious character made from an unexpected material",
+    "a hybrid between nature and advanced technology",
+    "a futuristic object from an unknown civilization",
+    "an impossible underwater scene",
+    "an ordinary object containing an entire miniature world",
+    "a gigantic object seen from the perspective of something tiny",
+    "a tiny world hidden inside a common object",
+    "an impossible vehicle crossing an ordinary street",
+    "a bizarre botanical organism with mechanical details",
+    "a surreal creature appearing in a completely ordinary place",
+    "a dreamlike city with one physically impossible element",
+]
+
+ANGULOS = [
+    "extreme bird's-eye view", "extreme worm's-eye view",
+    "dramatic low-angle perspective", "dramatic high-angle perspective",
+    "steep diagonal perspective", "macro close-up with exaggerated depth",
+    "three-quarter view with strong foreshortening", "top-down perspective",
+    "side perspective with unusual depth",
+    "extreme perspective from an impossible position",
+]
+
+def gerar_ideia():
+    prompt = f"""
+Create ONE unique visual concept for a surreal black-ink drawing.
+Base concept: {random.choice(ASSUNTOS)}
+Camera/composition: {random.choice(ANGULOS)}
+Make it visually clear, strange and unexpected. Avoid generic fantasy clichés.
+Return ONLY the visual description in English, maximum 220 words.
+""".strip()
+    r = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+    texto = (r.text or "").strip()
+    if not texto:
+        raise RuntimeError("Gemini não retornou uma ideia.")
+    return texto[:1800]
+
+def baixar_imagem(prompt):
+    ultimo_erro = None
+    for tentativa in range(1, 4):
+        try:
+            seed = random.randint(1, 999999999)
+            url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt, safe='')}?width=1024&height=1024&seed={seed}&nologo=true&model=flux"
+            print(f"Gerando imagem (tentativa {tentativa}/3)...")
+            r = requests.get(url, timeout=180)
+            r.raise_for_status()
+            if "image" not in r.headers.get("Content-Type", "").lower():
+                raise RuntimeError("Servidor não retornou uma imagem.")
+            img = Image.open(io.BytesIO(r.content)).convert("RGBA")
+            if img.width < 100 or img.height < 100:
+                raise RuntimeError("Imagem inválida.")
+            return img
+        except Exception as e:
+            ultimo_erro = e
+            print(f"Falha: {e}")
+    raise RuntimeError(f"Falha após 3 tentativas: {ultimo_erro}")
+
+def salvar_arte(img):
+    fundo = Image.new("RGBA", img.size, "WHITE")
+    fundo.alpha_composite(img)
+    d = ImageDraw.Draw(fundo)
+    try:
+        fonte = ImageFont.truetype(NOME_DO_ARQUIVO_FONTE, TAMANHO_DA_ASSINATURA)
+    except Exception:
+        fonte = ImageFont.load_default()
+    texto = "Wen"
+    box = d.textbbox((0, 0), texto, font=fonte)
+    d.text((fundo.width-(box[2]-box[0])-35, fundo.height-(box[3]-box[1])-35), texto, fill="black", font=fonte)
+    fundo.convert("RGB").save("wen_art.jpg", "JPEG", quality=95)
+
+def analisar_imagem_e_criar_legenda():
+    print("Analisando a imagem REAL com Gemini...")
+    imagem = Image.open("wen_art.jpg").convert("RGB")
+    prompt = """
+Analyze THIS ACTUAL IMAGE, not just the original concept.
+Write a ready-to-post Instagram caption in Brazilian Portuguese.
+Describe only what is visible. Consider subject, action, unusual perspective,
+composition, atmosphere and surreal details. Be human, intriguing and slightly
+poetic. Maximum 4 short lines before hashtags. Never invent details. Never mention
+AI, Gemini, Pollinations, prompts, automation or image generation.
+Finish with exactly 5 relevant hashtags, always including #wen and #art.
+Put hashtags on the last line. Return ONLY the final caption.
+""".strip()
+    for tentativa in range(1, 4):
+        try:
+            r = client.models.generate_content(model=GEMINI_MODEL, contents=[prompt, imagem])
+            legenda = (r.text or "").strip()
+            if legenda and "#wen" in legenda.lower() and "#art" in legenda.lower():
+                return legenda
+        except Exception as e:
+            print(f"Falha na análise {tentativa}/3: {e}")
+    raise RuntimeError("Não foi possível criar a legenda.")
 
 def criar_arte():
-    print("1. Gerando arte...")
-    
-    tema_escolhido = ""
-    
-    # --- 1. GEMINI COMO GERADOR DE PROMPTS INFINITOS ---
-    try:
-        model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-        
-        instrucao_criativa = (
-            "Atue como um gerador de ideias artísticas vanguardista e aleatório. "
-            "Gere uma descrição visual ÚNICA, SURREAL e INESPERADA para um desenho a traço. "
-            "Misture conceitos distantes (ex: natureza + máquinas, espaço + fundo do mar). "
-            "NÃO use clichês. Seja bizarro e poético. "
-            "Responda APENAS a descrição do objeto/cena em Inglês."
-        )
-        
-        tema_escolhido = model.generate_content(instrucao_criativa).text.strip()
-        if len(tema_escolhido) > 300: tema_escolhido = tema_escolhido[:300]
-        print(f"✨ Gemini imaginou: {tema_escolhido}")
-        
-    except Exception as e:
-        print(f"Erro no Gemini: {e}. Usando fallback.")
-        tema_escolhido = FALLBACK_SIMPLE
+    ideia = gerar_ideia()
+    print(f"Conceito: {ideia}")
+    prompt = f"""
+Hand-drawn black ink pen illustration on clean white paper.
 
-    # --- 2. GERA IMAGEM COM POLLINATIONS ---
-    seed = random.randint(1, 9999999) 
-    prompt_imagem = f"Detailed black pencil sketch, masterpiece, rough sketch style, charcoal lines on white paper. Subject: {tema_escolhido}. high contrast, white background, single isolated object." 
-    
-    img = None # A imagem final será armazenada aqui
-    
-    try:
-        safe_prompt = urllib.parse.quote(prompt_imagem)
-        url_pol = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&nologo=true&model=flux"
-        
-        print("Baixando imagem (Timeout 120s)...")
-        # Aumentamos o timeout para 120 segundos para evitar erros de rede
-        r = requests.get(url_pol, timeout=120) 
-        
-        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
-             img_data = r.content
-             img = Image.open(io.BytesIO(img_data)).convert("RGBA")
-             print("✅ Imagem baixada com sucesso.")
-        else:
-             raise Exception(f"Erro imagem: {r.status_code}")
+VISUAL CONCEPT:
+{ideia}
 
-    except Exception as e:
-        print(f"❌ Falha crítica ao baixar imagem: {e}")
-        print("⚠️ Criando imagem de erro localmente (Blindada)...")
-        
-        # --- PLANO C: GERAR IMAGEM LOCALMENTE (SEM DOWNLOAD) ---
-        # Isso garante que o robô NUNCA trave por erro de rede ou bytes inválidos
-        img = Image.new("RGBA", (1024, 1024), "BLACK")
-        d_err = ImageDraw.Draw(img)
-        try: font_err = ImageFont.load_default()
-        except: pass
-        d_err.text((10, 500), "Erro de Conexão com Pollinations.\nTentando novamente em 5h.", fill="white")
-        
-        tema_escolhido = "Falha técnica temporária na geração de imagem."
+STYLE:
+black ink only, expressive hand-drawn pen strokes, fine linework,
+varied line weight, clean white negative space, surreal artistic illustration,
+unusual unconventional camera angle, dynamic perspective, strong composition,
+clear silhouette, detailed pen hatching, monochrome.
 
-    # --- 3. ASSINA E SALVA ---
-    # Neste ponto, 'img' JÁ É uma imagem válida (seja do download ou a preta local)
-    # Não precisamos mais de try/except aqui.
-    
-    bg = Image.new("RGBA", img.size, "WHITE")
-    bg.paste(img, (0, 0), img)
-    d = ImageDraw.Draw(bg)
-    
-    try: font = ImageFont.truetype(NOME_DO_ARQUIVO_FONTE, TAMANHO_DA_ASSINATURA) 
-    except: font = ImageFont.load_default()
-    
-    d.text((bg.width-200, bg.height-100), "Wen", fill="black", font=font)
-    bg.convert("RGB").save("wen_art.jpg", "JPEG")
-    
-    # --- 4. GERA A LEGENDA CONTEXTUAL ---
-    print("3. Criando legenda contextual...")
-    try: 
-        instrucao_legenda = (
-            f"Escreva uma legenda poética em Português do Brasil SOBRE este tema visual específico: '{tema_escolhido}'.\n"
-            "Atenção: A legenda deve refletir a atmosfera da imagem. Se for sombria, seja sombrio. Se for mágica, seja mágico.\n"
-            "Estilo: Curto, profundo, máximo 4 linhas.\n"
-            "Final: Crie 3 hashtags em Português que descrevam o objeto e termine com #wen #art.\n"
-            "NÃO use aspas."
-        )
-        legenda = model.generate_content(instrucao_legenda).text.strip()
-    except: 
-        legenda = f"Arte Wen: {tema_escolhido} \n#wen #art"
-    
-    with open("wen_art.txt", "w", encoding="utf-8") as f: f.write(legenda)
+STRICTLY AVOID:
+color, photorealism, 3D render, painting, watercolor, colored pencil,
+gray digital gradients, text, logos, border, frame.
+""".strip()
+    img = baixar_imagem(prompt)
+    salvar_arte(img)
+    legenda = analisar_imagem_e_criar_legenda()
+    open("wen_art.txt", "w", encoding="utf-8").write(legenda)
+    open("wen_art_idea.txt", "w", encoding="utf-8").write(ideia)
+    print(legenda)
     return legenda
 
-def avisar_make(legenda):
-    print("2. Enviando para o Make...")
-    if not MAKE_WEBHOOK_URL:
-        print("ERRO: Link do Make não configurado.")
-        return
-
-    link_imagem = f"https://{USUARIO_GITHUB}.github.io/{NOME_REPO}/wen_art.jpg?v={int(time.time())}"
-    
-    payload = {
-        "photo_url": link_imagem,
-        "caption": legenda
-    }
-    r = requests.post(MAKE_WEBHOOK_URL, json=payload)
-    print(f"Make avisado! Código: {r.status_code}")
-
 if __name__ == "__main__":
-    legenda = criar_arte()
-    avisar_make(legenda)
+    criar_arte()
