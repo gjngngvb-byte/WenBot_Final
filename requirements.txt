@@ -1,4 +1,3 @@
 requests
 Pillow
-instagrapi
-google-generativeai
+google-genai
