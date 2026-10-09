@@ -73,17 +73,20 @@ jobs:
           PY
 
       - name: Responder comentários de publicações anteriores
-        if: ${{ secrets.IG_ACCESS_TOKEN != '' && secrets.IG_USER_ID != '' }}
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_USERNAME: ${{ vars.IG_USERNAME }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_TEXT_MODEL: ${{ vars.OPENAI_TEXT_MODEL }}
-        run: python responder_comentarios.py
+        run: |
+          if [ -z "$IG_ACCESS_TOKEN" ] || [ -z "$IG_USER_ID" ]; then
+            echo "Secrets do Instagram não configurados; etapa de comentários ignorada."
+            exit 0
+          fi
+          python responder_comentarios.py
 
       - name: Salvar estado dos comentários respondidos
-        if: ${{ secrets.IG_ACCESS_TOKEN != '' && secrets.IG_USER_ID != '' }}
         run: |
           git config user.name "Wen Bot"
           git config user.email "bot@wen.com"
