@@ -1,88 +1,88 @@
+import base64
 import io
 import os
 import random
-import urllib.parse
+from pathlib import Path
 
-import requests
+from openai import OpenAI
 from PIL import Image, ImageDraw, ImageFont
-from google import genai
 
 USUARIO_GITHUB = "gjngngvb-byte"
 NOME_REPO = "WenBot_Final"
 NOME_DO_ARQUIVO_FONTE = "Quentin.otf"
 TAMANHO_DA_ASSINATURA = 60
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL = "gemini-3.8-flash"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_IMAGE_MODEL = os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1")
+OPENAI_TEXT_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4.1-mini")
 
-if not GOOGLE_API_KEY:
-    raise RuntimeError("GOOGLE_API_KEY não configurada.")
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY não configurada nos Secrets do GitHub.")
 
-client = genai.Client(api_key=GOOGLE_API_KEY)
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 ASSUNTOS = [
-    "an impossible animal combining two unrelated creatures",
-    "an everyday object behaving like a living creature",
-    "a strange machine with an impossible purpose",
-    "a surreal building that could not exist in the real world",
-    "a mysterious character made from an unexpected material",
-    "a hybrid between nature and advanced technology",
-    "a futuristic object from an unknown civilization",
-    "an impossible underwater scene",
-    "an ordinary object containing an entire miniature world",
-    "a gigantic object seen from the perspective of something tiny",
-    "a tiny world hidden inside a common object",
-    "an impossible vehicle crossing an ordinary street",
-    "a bizarre botanical organism with mechanical details",
-    "a surreal creature appearing in a completely ordinary place",
-    "a dreamlike city with one physically impossible element",
+    "um animal impossível que mistura duas criaturas sem relação",
+    "um objeto cotidiano se comportando como um ser vivo",
+    "uma máquina estranha com uma finalidade impossível",
+    "um edifício surreal que não poderia existir no mundo real",
+    "um personagem misterioso feito de um material inesperado",
+    "uma mistura de natureza com tecnologia avançada",
+    "um objeto futurista de uma civilização desconhecida",
+    "uma cena submarina impossível",
+    "um objeto comum que contém um mundo em miniatura",
+    "um objeto gigantesco visto da perspectiva de algo minúsculo",
+    "um mundo minúsculo escondido dentro de um objeto comum",
+    "um veículo impossível atravessando uma rua comum",
+    "um organismo botânico bizarro com detalhes mecânicos",
+    "uma criatura surreal aparecendo em um lugar cotidiano",
+    "uma cidade onírica com um único elemento fisicamente impossível",
 ]
 
 ANGULOS = [
-    "extreme bird's-eye view", "extreme worm's-eye view",
-    "dramatic low-angle perspective", "dramatic high-angle perspective",
-    "steep diagonal perspective", "macro close-up with exaggerated depth",
-    "three-quarter view with strong foreshortening", "top-down perspective",
-    "side perspective with unusual depth",
-    "extreme perspective from an impossible position",
+    "vista aérea extrema", "vista de baixo extrema",
+    "perspectiva dramática de baixo para cima",
+    "perspectiva dramática de cima para baixo",
+    "perspectiva diagonal acentuada",
+    "macro com profundidade exagerada",
+    "vista de três quartos com forte escorço",
+    "perspectiva totalmente de cima",
+    "vista lateral com profundidade incomum",
+    "perspectiva extrema de uma posição impossível",
 ]
 
 def gerar_ideia():
     prompt = f"""
-Create ONE unique visual concept for a surreal black-ink drawing.
-Base concept: {random.choice(ASSUNTOS)}
-Camera/composition: {random.choice(ANGULOS)}
-Make it visually clear, strange and unexpected. Avoid generic fantasy clichés.
-Return ONLY the visual description in English, maximum 220 words.
+Crie UMA ideia visual original para uma ilustração surreal desenhada com caneta preta.
+Conceito-base: {random.choice(ASSUNTOS)}
+Câmera/composição: {random.choice(ANGULOS)}
+A ideia deve ser visualmente clara, estranha e inesperada, sem clichês genéricos de fantasia.
+Retorne apenas a descrição visual em português, com no máximo 150 palavras.
 """.strip()
-    r = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-    texto = (r.text or "").strip()
+    resposta = client.responses.create(model=OPENAI_TEXT_MODEL, input=prompt)
+    texto = (resposta.output_text or "").strip()
     if not texto:
-        raise RuntimeError("Gemini não retornou uma ideia.")
+        raise RuntimeError("A API OpenAI não retornou uma ideia.")
     return texto[:1800]
 
 def baixar_imagem(prompt):
-    ultimo_erro = None
-    for tentativa in range(1, 4):
-        try:
-            seed = random.randint(1, 999999999)
-            url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt, safe='')}?width=1024&height=1024&seed={seed}&nologo=true&model=flux"
-            print(f"Gerando imagem (tentativa {tentativa}/3)...")
-            r = requests.get(url, timeout=180)
-            r.raise_for_status()
-            if "image" not in r.headers.get("Content-Type", "").lower():
-                raise RuntimeError("Servidor não retornou uma imagem.")
-            img = Image.open(io.BytesIO(r.content)).convert("RGBA")
-            if img.width < 100 or img.height < 100:
-                raise RuntimeError("Imagem inválida.")
-            return img
-        except Exception as e:
-            ultimo_erro = e
-            print(f"Falha: {e}")
-    raise RuntimeError(f"Falha após 3 tentativas: {ultimo_erro}")
+    print(f"Gerando imagem com {OPENAI_IMAGE_MODEL}...")
+    resultado = client.images.generate(
+        model=OPENAI_IMAGE_MODEL,
+        prompt=prompt,
+        size="1024x1024",
+        quality="medium",
+        n=1,
+    )
+    dados = resultado.data[0].b64_json
+    if not dados:
+        raise RuntimeError("A API OpenAI não retornou os dados da imagem.")
+    imagem = Image.open(io.BytesIO(base64.b64decode(dados))).convert("RGB")
+    if imagem.width < 100 or imagem.height < 100:
+        raise RuntimeError("A imagem retornada é inválida.")
+    return imagem
 
 def salvar_arte(img):
-    fundo = Image.new("RGBA", img.size, "WHITE")
-    fundo.alpha_composite(img)
+    fundo = img.convert("RGB")
     d = ImageDraw.Draw(fundo)
     try:
         fonte = ImageFont.truetype(NOME_DO_ARQUIVO_FONTE, TAMANHO_DA_ASSINATURA)
@@ -91,55 +91,65 @@ def salvar_arte(img):
     texto = "Wen"
     box = d.textbbox((0, 0), texto, font=fonte)
     d.text((fundo.width-(box[2]-box[0])-35, fundo.height-(box[3]-box[1])-35), texto, fill="black", font=fonte)
-    fundo.convert("RGB").save("wen_art.jpg", "JPEG", quality=95)
+    fundo.save("wen_art.jpg", "JPEG", quality=95)
 
 def analisar_imagem_e_criar_legenda():
-    print("Analisando a imagem REAL com Gemini...")
+    print("Analisando a imagem final com OpenAI...")
     imagem = Image.open("wen_art.jpg").convert("RGB")
+    buffer = io.BytesIO()
+    imagem.save(buffer, format="JPEG", quality=90)
+    import base64
+    imagem_data = base64.b64encode(buffer.getvalue()).decode("ascii")
     prompt = """
-Analyze THIS ACTUAL IMAGE, not just the original concept.
-Write a ready-to-post Instagram caption in Brazilian Portuguese.
-Describe only what is visible. Consider subject, action, unusual perspective,
-composition, atmosphere and surreal details. Be human, intriguing and slightly
-poetic. Maximum 4 short lines before hashtags. Never invent details. Never mention
-AI, Gemini, Pollinations, prompts, automation or image generation.
-Finish with exactly 5 relevant hashtags, always including #wen and #art.
-Put hashtags on the last line. Return ONLY the final caption.
+Analise ESTA IMAGEM REAL, não apenas a ideia original.
+Escreva uma legenda pronta para Instagram em português brasileiro.
+Descreva somente o que está visível. Considere assunto, ação, perspectiva incomum,
+composição, atmosfera e detalhes surreais. Seja humano, intrigante e levemente poético.
+No máximo 4 linhas curtas antes das hashtags. Não invente detalhes.
+Nunca mencione IA, OpenAI, prompts, automação ou geração de imagens.
+Finalize com exatamente 5 hashtags relevantes, incluindo sempre #wen e #art.
+Coloque as hashtags na última linha. Retorne somente a legenda final.
 """.strip()
-    for tentativa in range(1, 4):
-        try:
-            r = client.models.generate_content(model=GEMINI_MODEL, contents=[prompt, imagem])
-            legenda = (r.text or "").strip()
-            if legenda and "#wen" in legenda.lower() and "#art" in legenda.lower():
-                return legenda
-        except Exception as e:
-            print(f"Falha na análise {tentativa}/3: {e}")
-    raise RuntimeError("Não foi possível criar a legenda.")
+    resposta = client.responses.create(
+        model=OPENAI_TEXT_MODEL,
+        input=[{
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": prompt},
+                {"type": "input_image", "image_url": f"data:image/jpeg;base64,{imagem_data}"},
+            ],
+        }],
+    )
+    legenda = (resposta.output_text or "").strip()
+    if not legenda or "#wen" not in legenda.lower() or "#art" not in legenda.lower():
+        raise RuntimeError("Não foi possível criar uma legenda válida com #wen e #art.")
+    return legenda
 
 def criar_arte():
     ideia = gerar_ideia()
     print(f"Conceito: {ideia}")
     prompt = f"""
-Hand-drawn black ink pen illustration on clean white paper.
+Ilustração feita à mão com caneta de tinta preta em papel branco limpo.
 
-VISUAL CONCEPT:
+CONCEITO VISUAL:
 {ideia}
 
-STYLE:
-black ink only, expressive hand-drawn pen strokes, fine linework,
-varied line weight, clean white negative space, surreal artistic illustration,
-unusual unconventional camera angle, dynamic perspective, strong composition,
-clear silhouette, detailed pen hatching, monochrome.
+ESTILO OBRIGATÓRIO:
+somente tinta preta, traços expressivos de caneta, linhas finas com pesos variados,
+espaço negativo branco, ilustração artística surreal, ângulo de câmera incomum,
+perspectiva dinâmica, composição forte, silhueta clara e hachuras desenhadas à mão.
+A imagem deve parecer uma ilustração física feita por um artista, não um render digital.
 
-STRICTLY AVOID:
-color, photorealism, 3D render, painting, watercolor, colored pencil,
-gray digital gradients, text, logos, border, frame.
+EVITAR:
+cores, fotorrealismo, render 3D, pintura, aquarela, lápis de cor,
+gradientes digitais cinzentos, texto, logos, moldura ou borda.
+Não desenhe assinatura ou letras, pois a assinatura será adicionada depois.
 """.strip()
     img = baixar_imagem(prompt)
     salvar_arte(img)
     legenda = analisar_imagem_e_criar_legenda()
-    open("wen_art.txt", "w", encoding="utf-8").write(legenda)
-    open("wen_art_idea.txt", "w", encoding="utf-8").write(ideia)
+    Path("wen_art.txt").write_text(legenda + "\n", encoding="utf-8")
+    Path("wen_art_idea.txt").write_text(ideia + "\n", encoding="utf-8")
     print(legenda)
     return legenda
 
