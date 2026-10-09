@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: wenbot-publicacao
+  cancel-in-progress: false
+
 jobs:
   postar:
     runs-on: ubuntu-latest
@@ -25,9 +29,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Gerar arte e legenda
+      - name: Gerar arte e legenda com OpenAI
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL }}
+          OPENAI_TEXT_MODEL: ${{ vars.OPENAI_TEXT_MODEL }}
         run: python robo.py
 
       - name: Salvar arte no Git
@@ -35,7 +41,7 @@ jobs:
           git config user.name "Wen Bot"
           git config user.email "bot@wen.com"
           git add wen_art.jpg wen_art.txt wen_art_idea.txt
-          git commit -m "Nova arte gerada" || exit 0
+          git commit -m "Nova arte gerada pelo WenBot" || exit 0
           git push
 
       - name: Aguardar GitHub Pages atualizar
@@ -43,32 +49,44 @@ jobs:
           for i in {1..12}; do
             CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "https://gjngngvb-byte.github.io/WenBot_Final/wen_art.jpg?v=$GITHUB_RUN_ID-$i")
             echo "Tentativa $i: HTTP $CODE"
-            if [ "$CODE" = "200" ]; then
-              break
-            fi
+            if [ "$CODE" = "200" ]; then break; fi
             sleep 10
           done
           sleep 20
 
-      - name: Publicar no Instagram via Make
+      - name: Publicar no Instagram via Make (integração existente)
         env:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: |
           python - <<'PY'
-          import os
-          import time
-          import requests
-
+          import os, time, requests
           webhook = os.environ.get("MAKE_WEBHOOK_URL")
           if not webhook:
-              raise SystemExit("MAKE_WEBHOOK_URL não configurada.")
-
+              raise SystemExit("MAKE_WEBHOOK_URL não configurada; publicação cancelada.")
           with open("wen_art.txt", "r", encoding="utf-8") as f:
               legenda = f.read().strip()
-
           imagem = f"https://gjngngvb-byte.github.io/WenBot_Final/wen_art.jpg?v={int(time.time())}"
           resposta = requests.post(webhook, json={"photo_url": imagem, "caption": legenda}, timeout=60)
           print("Make:", resposta.status_code)
           print(resposta.text[:1000])
           resposta.raise_for_status()
           PY
+
+      - name: Responder comentários de publicações anteriores
+        if: ${{ secrets.IG_ACCESS_TOKEN != '' && secrets.IG_USER_ID != '' }}
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_USERNAME: ${{ vars.IG_USERNAME }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_TEXT_MODEL: ${{ vars.OPENAI_TEXT_MODEL }}
+        run: python responder_comentarios.py
+
+      - name: Salvar estado dos comentários respondidos
+        if: ${{ secrets.IG_ACCESS_TOKEN != '' && secrets.IG_USER_ID != '' }}
+        run: |
+          git config user.name "Wen Bot"
+          git config user.email "bot@wen.com"
+          git add comentarios_respondidos.json
+          git commit -m "Atualiza controle de comentários respondidos" || exit 0
+          git push
