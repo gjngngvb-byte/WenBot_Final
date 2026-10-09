@@ -46,36 +46,34 @@ jobs:
 
       - name: Aguardar GitHub Pages atualizar
         run: |
+          READY=0
           for i in {1..12}; do
             CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "https://gjngngvb-byte.github.io/WenBot_Final/wen_art.jpg?v=$GITHUB_RUN_ID-$i")
             echo "Tentativa $i: HTTP $CODE"
-            if [ "$CODE" = "200" ]; then break; fi
+            if [ "$CODE" = "200" ]; then
+              READY=1
+              break
+            fi
             sleep 10
           done
-          sleep 20
+          if [ "$READY" != "1" ]; then
+            echo "A imagem não ficou pública no GitHub Pages."
+            exit 1
+          fi
+          sleep 10
 
-      - name: Publicar no Instagram via Make (integração existente)
+      - name: Publicar diretamente no Instagram
         env:
-          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
-        run: |
-          python - <<'PY'
-          import os, time, requests
-          webhook = os.environ.get("MAKE_WEBHOOK_URL")
-          if not webhook:
-              raise SystemExit("MAKE_WEBHOOK_URL não configurada; publicação cancelada.")
-          with open("wen_art.txt", "r", encoding="utf-8") as f:
-              legenda = f.read().strip()
-          imagem = f"https://gjngngvb-byte.github.io/WenBot_Final/wen_art.jpg?v={int(time.time())}"
-          resposta = requests.post(webhook, json={"photo_url": imagem, "caption": legenda}, timeout=60)
-          print("Make:", resposta.status_code)
-          print(resposta.text[:1000])
-          resposta.raise_for_status()
-          PY
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_GRAPH_VERSION: ${{ vars.IG_GRAPH_VERSION }}
+        run: python publicar_instagram.py
 
       - name: Responder comentários de publicações anteriores
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_GRAPH_VERSION: ${{ vars.IG_GRAPH_VERSION }}
           IG_USERNAME: ${{ vars.IG_USERNAME }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_TEXT_MODEL: ${{ vars.OPENAI_TEXT_MODEL }}
