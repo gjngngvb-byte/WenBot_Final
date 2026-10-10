@@ -45,37 +45,40 @@ jobs:
           git commit -m "Nova arte gerada" || exit 0
           git push
 
-      - name: Aguardar GitHub Pages atualizar
-        run: |
-          for i in {1..12}; do
-            CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "https://gjngngvb-byte.github.io/WenBot_Final/wen_art.jpg?v=$GITHUB_RUN_ID-$i")
-            echo "Tentativa $i: HTTP $CODE"
-            if [ "$CODE" = "200" ]; then
-              break
-            fi
-            sleep 10
-          done
-          sleep 20
-
-      - name: Publicar no Instagram via Make
+      - name: Publicar diretamente no Instagram
         env:
-          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
+          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
+          INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
         run: |
           python - <<'PY'
           import os
-          import time
-          import requests
+          import sys
+          from instagrapi import Client
 
-          webhook = os.environ.get("MAKE_WEBHOOK_URL")
-          if not webhook:
-              raise SystemExit("MAKE_WEBHOOK_URL não configurada.")
+          username = os.environ.get("INSTAGRAM_USERNAME")
+          password = os.environ.get("INSTAGRAM_PASSWORD")
+          if not username or not password:
+              raise SystemExit(
+                  "Configure os Secrets INSTAGRAM_USERNAME e INSTAGRAM_PASSWORD."
+              )
 
-          with open("wen_art.txt", "r", encoding="utf-8") as f:
-              legenda = f.read().strip()
+          legenda = open("wen_art.txt", "r", encoding="utf-8").read().strip()
+          if not legenda:
+              raise SystemExit("A legenda está vazia; publicação cancelada.")
 
-          imagem = f"https://gjngngvb-byte.github.io/WenBot_Final/wen_art.jpg?v={int(time.time())}"
-          resposta = requests.post(webhook, json={"photo_url": imagem, "caption": legenda}, timeout=60)
-          print("Make:", resposta.status_code)
-          print(resposta.text[:1000])
-          resposta.raise_for_status()
+          cl = Client()
+          cl.delay_range = [3, 7]
+          try:
+              cl.login(username, password)
+              resultado = cl.photo_upload("wen_art.jpg", legenda)
+              print("Publicação enviada ao Instagram.")
+              print("Media PK:", getattr(resultado, "pk", "não informado"))
+              print("URL:", getattr(resultado, "code", "não informado"))
+          except Exception as exc:
+              print(f"Falha ao publicar: {type(exc).__name__}: {exc}")
+              print(
+                  "O Instagram pode exigir verificação, 2FA ou bloquear login "
+                  "automatizado. Nenhuma tentativa alternativa foi feita."
+              )
+              sys.exit(1)
           PY
