@@ -172,17 +172,34 @@ def baixar_imagem(prompt):
     )
 
 def salvar_arte(img):
+    """Aplica fundo branco e uma assinatura consistente, renderizada em alta resolução."""
     fundo = Image.new("RGBA", img.size, "WHITE")
-    fundo.alpha_composite(img)
-    d = ImageDraw.Draw(fundo)
+    fundo.alpha_composite(img.convert("RGBA"))
+
+    largura, altura = fundo.size
+    escala = 2
+    tamanho = max(28, min(TAMANHO_DA_ASSINATURA, round(largura * 0.058)))
+    margem = max(18, round(largura * 0.035))
+    camada = Image.new("RGBA", (largura * escala, altura * escala), (255, 255, 255, 0))
+    desenho = ImageDraw.Draw(camada)
+
     try:
-        fonte = ImageFont.truetype(NOME_DO_ARQUIVO_FONTE, TAMANHO_DA_ASSINATURA)
-    except Exception:
+        fonte = ImageFont.truetype(NOME_DO_ARQUIVO_FONTE, tamanho * escala)
+    except (OSError, ValueError):
+        print(f"Aviso: fonte {NOME_DO_ARQUIVO_FONTE} indisponível; usando fonte padrão.")
         fonte = ImageFont.load_default()
+
     texto = "Wen"
-    box = d.textbbox((0, 0), texto, font=fonte)
-    d.text((fundo.width-(box[2]-box[0])-35, fundo.height-(box[3]-box[1])-35), texto, fill="black", font=fonte)
-    fundo.convert("RGB").save("wen_art.jpg", "JPEG", quality=95)
+    caixa = desenho.textbbox((0, 0), texto, font=fonte)
+    texto_largura = caixa[2] - caixa[0]
+    texto_altura = caixa[3] - caixa[1]
+    x = largura * escala - texto_largura - margem * escala - caixa[0]
+    y = altura * escala - texto_altura - margem * escala - caixa[1]
+    desenho.text((x, y), texto, fill=(0, 0, 0, 255), font=fonte)
+
+    camada = camada.resize((largura, altura), Image.Resampling.LANCZOS)
+    fundo = Image.alpha_composite(fundo, camada)
+    fundo.convert("RGB").save("wen_art.jpg", "JPEG", quality=95, optimize=True)
 
 def analisar_imagem_e_criar_legenda():
     print("Analisando a imagem REAL com Gemini...")
@@ -211,20 +228,24 @@ def criar_arte():
     ideia = gerar_ideia()
     print(f"Conceito: {ideia}")
     prompt = f"""
-Hand-drawn black ink pen illustration on clean white paper.
+Hand-drawn black ink pen illustration on pure white paper.
 
 VISUAL CONCEPT:
 {ideia}
 
 STYLE:
-black ink only, expressive hand-drawn pen strokes, fine linework,
-varied line weight, clean white negative space, surreal artistic illustration,
-unusual unconventional camera angle, dynamic perspective, strong composition,
-clear silhouette, detailed pen hatching, monochrome.
+authentic hand-drawn pen illustration, black ink only, crisp fine linework,
+varied natural line weight, controlled cross-hatching, clear silhouette,
+strong visual hierarchy, detailed but readable shapes, clean white negative space,
+surreal artistic concept, unconventional camera angle, dramatic foreshortening,
+dynamic perspective, balanced composition, monochrome.
+Keep the bottom-right corner relatively simple and uncluttered for a small
+signature that will be added afterward. The artwork itself must contain no writing.
 
 STRICTLY AVOID:
 color, photorealism, 3D render, painting, watercolor, colored pencil,
-gray digital gradients, text, logos, border, frame.
+gray digital gradients, captions, letters, signatures, logos, watermark,
+border, frame, paper texture, beige background.
 """.strip()
     img = baixar_imagem(prompt)
     salvar_arte(img)
