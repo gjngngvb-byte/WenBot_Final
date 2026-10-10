@@ -91,11 +91,29 @@ Camera/composition: {random.choice(ANGULOS)}
 Build the subject from simple, readable geometric shapes and confident outlines. Make it imaginative, visually attractive, strange but understandable, and clearly different from generic fantasy clichés. Prioritize a strong silhouette and an unconventional camera angle without any 3D depth, lighting, or shading.
 Do not copy any reference image. Return ONLY the visual description in English, maximum 180 words.
 """.strip()
-    r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=prompt)
-    texto = (r.text or "").strip()
-    if not texto:
-        raise RuntimeError("Gemini não retornou uma ideia.")
-    return texto[:1800]
+    try:
+        r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=prompt)
+        texto = (r.text or "").strip()
+        if texto:
+            return texto[:1800]
+        print("Gemini retornou uma ideia vazia; usando conceito local.")
+    except Exception as erro:
+        print(
+            f"Gemini indisponível para criar o conceito "
+            f"({type(erro).__name__}). Usando conceito local para continuar."
+        )
+
+    # Plano B sem API: a geração da arte continua mesmo quando a cota do Gemini acaba.
+    assunto = random.choice(ASSUNTOS)
+    angulo = random.choice(ANGULOS)
+    return (
+        f"Create an original imaginative subject based on: {assunto}. "
+        f"Composition and viewpoint: {angulo}. "
+        "Use a clean, flat 2D design made from simple geometric shapes, "
+        "crisp black outlines, pure white background, and a strong readable silhouette. "
+        "Keep it beautiful, unusual, and understandable. No color, gray, fill, "
+        "shading, shadows, gradients, lighting, texture, hatching, text, or 3D effects."
+    )
 
 def baixar_imagem(prompt):
     """Gera a imagem com Cloudflare Workers AI, sem alterar o fluxo do Gemini/Instagram."""
