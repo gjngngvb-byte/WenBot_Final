@@ -47,20 +47,22 @@ jobs:
 
       - name: Publicar diretamente no Instagram
         env:
-          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
-          INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
+          INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
         run: |
           python - <<'PY'
+          import json
           import os
           import sys
           from instagrapi import Client
 
-          username = os.environ.get("INSTAGRAM_USERNAME")
-          password = os.environ.get("INSTAGRAM_PASSWORD")
-          if not username or not password:
-              raise SystemExit(
-                  "Configure os Secrets INSTAGRAM_USERNAME e INSTAGRAM_PASSWORD."
-              )
+          session_json = os.environ.get("INSTAGRAM_SESSION")
+          if not session_json:
+              raise SystemExit("Configure o Secret INSTAGRAM_SESSION.")
+
+          try:
+              settings = json.loads(session_json)
+          except json.JSONDecodeError:
+              raise SystemExit("O Secret INSTAGRAM_SESSION não contém JSON válido.")
 
           legenda = open("wen_art.txt", "r", encoding="utf-8").read().strip()
           if not legenda:
@@ -69,16 +71,18 @@ jobs:
           cl = Client()
           cl.delay_range = [3, 7]
           try:
-              cl.login(username, password)
+              cl.set_settings(settings)
+              # Confirma que a sessão ainda está autenticada antes de publicar.
+              cl.get_timeline_feed()
               resultado = cl.photo_upload("wen_art.jpg", legenda)
               print("Publicação enviada ao Instagram.")
               print("Media PK:", getattr(resultado, "pk", "não informado"))
-              print("URL:", getattr(resultado, "code", "não informado"))
+              print("Código da publicação:", getattr(resultado, "code", "não informado"))
           except Exception as exc:
               print(f"Falha ao publicar: {type(exc).__name__}: {exc}")
               print(
-                  "O Instagram pode exigir verificação, 2FA ou bloquear login "
-                  "automatizado. Nenhuma tentativa alternativa foi feita."
+                  "A sessão pode ter expirado ou o Instagram pode exigir nova "
+                  "verificação. Atualize a sessão localmente e substitua o Secret."
               )
               sys.exit(1)
           PY
