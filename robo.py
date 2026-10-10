@@ -17,8 +17,9 @@ GEMINI_MODEL = "gemini-3.8-flash"
 # Cloudflare Workers AI: use apenas o plano Free para evitar cobranças.
 CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
 CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN")
-CLOUDFLARE_IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell"
-CLOUDFLARE_IMAGE_STEPS = 4
+CLOUDFLARE_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-9b"
+CLOUDFLARE_IMAGE_WIDTH = 1024
+CLOUDFLARE_IMAGE_HEIGHT = 1024
 
 if not GOOGLE_API_KEY:
     raise RuntimeError("GOOGLE_API_KEY não configurada.")
@@ -74,8 +75,7 @@ def baixar_imagem(prompt):
             "do ambiente onde o WenBot é executado."
         )
 
-    # FLUX.1 schnell aceita prompts de até 2048 caracteres. Preserva
-    # as instruções de estilo mesmo quando a ideia do Gemini é longa.
+    # Mantém o conceito e as instruções de estilo no prompt do FLUX.2 Klein 9B.
     if "VISUAL CONCEPT:" in prompt and "\n\nSTYLE:" in prompt:
         inicio, resto = prompt.split("VISUAL CONCEPT:", 1)
         conceito, estilo = resto.split("\n\nSTYLE:", 1)
@@ -87,14 +87,15 @@ def baixar_imagem(prompt):
         "https://api.cloudflare.com/client/v4/accounts/"
         f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/{CLOUDFLARE_IMAGE_MODEL}"
     )
+    # FLUX.2 Klein 9B exige multipart/form-data; steps é fixo em 4 no serviço.
     payload = {
         "prompt": prompt_api,
-        "seed": random.randint(1, 999999999),
-        "steps": CLOUDFLARE_IMAGE_STEPS,
+        "width": str(CLOUDFLARE_IMAGE_WIDTH),
+        "height": str(CLOUDFLARE_IMAGE_HEIGHT),
+        "seed": str(random.randint(1, 999999999)),
     }
     headers = {
         "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
-        "Content-Type": "application/json",
     }
 
     ultimo_erro = None
@@ -104,7 +105,16 @@ def baixar_imagem(prompt):
                 f"Gerando imagem com Cloudflare Workers AI "
                 f"(tentativa {tentativa}/3)..."
             )
-            r = requests.post(url, headers=headers, json=payload, timeout=180)
+            arquivos_form = {
+                chave: (None, valor)
+                for chave, valor in payload.items()
+            }
+            r = requests.post(
+                url,
+                headers=headers,
+                files=arquivos_form,
+                timeout=180,
+            )
             r.raise_for_status()
             data = r.json()
 
