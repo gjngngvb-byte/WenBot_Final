@@ -85,11 +85,12 @@ ANGULOS = [
 
 def gerar_ideia():
     prompt = f"""
-Create ONE unique concept for a clean, digital-looking 2D illustration made only with black lines on a pure white background.
+Create ONE original concept for a clean, digital-looking 2D illustration inspired by the user's established spider-reference art style. Do not recreate the spider or any reference image.
 Base concept: {random.choice(ASSUNTOS)}
 Camera/composition: {random.choice(ANGULOS)}
-Build the subject from simple, readable geometric shapes and confident outlines. Make it imaginative, visually attractive, strange but understandable, and clearly different from generic fantasy clichés. Prioritize a strong silhouette and an unconventional camera angle without any 3D depth, lighting, or shading.
-Do not copy any reference image. Return ONLY the visual description in English, maximum 180 words.
+STYLE: crisp, deliberate black vector-like outlines on a pure white background, using simple geometric shapes and clean curves. The design should feel graphic, minimal, clever, and imaginative, with a strong readable silhouette and an unusual viewpoint. Keep the subject flat and clearly illustrated, not rendered in 3D.
+ABSOLUTELY NO color, gray, shading, shadows, gradients, texture, hatching, sketchy strokes, paint effects, lettering, text, logos, watermarks, or signatures. The bot will add the only signature, "Wen", separately after generation.
+Return ONLY the visual description in English, maximum 180 words.
 """.strip()
     try:
         r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=prompt)
@@ -260,27 +261,26 @@ def criar_arte():
     ideia = gerar_ideia()
     print(f"Conceito: {ideia}")
     prompt = f"""
-Create a polished, clean, digital-looking 2D line illustration.
+Create a polished illustration in the same clean graphic style as the spider reference the user shared earlier. Use the reference ONLY for its visual style, never recreate its subject or composition.
 
 VISUAL CONCEPT:
 {ideia}
 
-MANDATORY ART STYLE:
+MANDATORY STYLE:
 - Pure white background (#FFFFFF).
-- Pure black lines and outlines only (#000000). Strict monochrome black and white.
-- Flat 2D illustration, built from simple geometric shapes, clean curves, and deliberate outlines.
-- Clear, elegant silhouette; balanced composition; visually attractive and imaginative subject.
-- Minimal, intentional linework. Use only the details needed to make the subject distinctive and readable.
-- Always use an unconventional camera angle or unusual viewpoint, while keeping the image clearly flat 2D.
-- Leave the bottom-right corner clean and uncluttered for the signature added afterward.
-- Absolutely NO text or typography anywhere inside the generated artwork: no words, letters, numbers, symbols resembling writing, captions, labels, signatures, logos, brand names, trademarks, watermarks, artist marks, AI marks, or generator/provider marks.
-- The ONLY allowed signature is the exact word "Wen", which is added afterward by the bot as a separate overlay. Do not draw or generate "Wen" inside the artwork.
-- Invent a new composition for every image. Use the concept as inspiration only; never recreate a reference image.
+- Pure black linework only (#000000), with no other colors and no gray.
+- Clean, digital-looking 2D illustration, like precise black ink/vector line art.
+- Build forms from simple geometric shapes and clean, intentional curves.
+- Strong, clear silhouette; minimal but distinctive details; visually attractive, imaginative, and easy to read.
+- Use a surprising, unconventional camera angle while keeping the artwork flat and graphic.
+- Use crisp, consistent outlines. Avoid messy, rough, sketchy or painterly marks.
+- Keep the bottom-right corner relatively uncluttered for the signature that the bot adds afterward.
+- Invent a new subject and composition each time. The reference is only a style guide.
 
 STRICTLY FORBIDDEN:
-Any color, colored accents, gray, grayscale tones, gradients, shading, shadows, highlights, lighting effects, 3D appearance, perspective depth rendering, volume modeling, cross-hatching, scribbles, sketchy strokes, paint texture, blending, halftones, texture, photorealism, watercolor, pencil, canvas or paper texture, borders, frames, beige/off-white background, text, lettering, logos, and watermarks.
+Any color, colored accents, gray or grayscale, gradients, shading, shadows, highlights, lighting effects, 3D rendering, simulated volume, photorealism, hatching, cross-hatching, scribbles, sketchy strokes, paint texture, watercolor, pencil texture, paper texture, halftones, fills, borders, frames, beige/off-white backgrounds, text, letters, numbers, logos, brand names, labels, watermarks, AI/provider marks, or signatures.
 
-The final image must look like a crisp vector-style black line drawing on pure white, with no fill colors and no simulated light or depth.
+Do not generate any text, including "Wen". The bot adds the only signature, the exact word "Wen", afterward as a separate overlay. The final result must look like a crisp, clean black geometric line illustration on pure white.
 """.strip()
     img = baixar_imagem(prompt)
     salvar_arte(img)
