@@ -28,7 +28,7 @@ if not GOOGLE_API_KEY:
 client = genai.Client(api_key=GOOGLE_API_KEY)
 
 def gerar_conteudo_com_retentativas(**kwargs):
-    """Repete erros temporários do Gemini, como 503 UNAVAILABLE."""
+    """Repete falhas transitórias, mas não insiste quando a cota foi esgotada."""
     ultimo_erro = None
     for tentativa in range(1, 4):
         try:
@@ -36,12 +36,18 @@ def gerar_conteudo_com_retentativas(**kwargs):
         except Exception as erro:
             ultimo_erro = erro
             mensagem = str(erro).upper()
+
+            # Cota diária esgotada não será resolvida por novas tentativas imediatas.
+            if "RESOURCE_EXHAUSTED" in mensagem or "QUOTA EXCEEDED" in mensagem:
+                raise
+
             temporario = any(
                 termo in mensagem
-                for termo in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "500", "INTERNAL")
+                for termo in ("503", "UNAVAILABLE", "429", "500", "INTERNAL", "SERVER DISCONNECTED")
             )
             if not temporario or tentativa == 3:
                 raise
+
             espera = tentativa * 15
             print(
                 f"Gemini temporariamente indisponível "
@@ -214,15 +220,23 @@ AI, Gemini, Pollinations, prompts, automation or image generation.
 Finish with exactly 5 relevant hashtags, always including #wen and #art.
 Put hashtags on the last line. Return ONLY the final caption.
 """.strip()
-    for tentativa in range(1, 4):
-        try:
-            r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=[prompt, imagem])
-            legenda = (r.text or "").strip()
-            if legenda and "#wen" in legenda.lower() and "#art" in legenda.lower():
-                return legenda
-        except Exception as e:
-            print(f"Falha na análise {tentativa}/3: {e}")
-    raise RuntimeError("Não foi possível criar a legenda.")
+
+    try:
+        r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=[prompt, imagem])
+        legenda = (r.text or "").strip()
+        if legenda and "#wen" in legenda.lower() and "#art" in legenda.lower():
+            return legenda
+        print("Gemini retornou uma legenda vazia ou sem as hashtags obrigatórias.")
+    except Exception as e:
+        print(f"Gemini não conseguiu criar a legenda: {type(e).__name__}: {e}")
+
+    # A falta de cota para legendas não deve impedir a publicação da arte.
+    # Esta legenda neutra evita afirmar detalhes visuais que não foram verificados.
+    print("Usando legenda de reserva em português para não interromper o fluxo.")
+    return (
+        "Às vezes, basta mudar o ponto de vista para o impossível ganhar forma.\n\n"
+        "#wen #art #arte #desenho #surrealismo"
+    )
 
 def criar_arte():
     ideia = gerar_ideia()
