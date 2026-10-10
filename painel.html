@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel WenBot</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0b0d;--card:#151519;--line:#292930;--text:#f5f5f7;--muted:#a1a1aa;--accent:#d6f36a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#24251a 0,transparent 32%),var(--bg);color:var(--text);font:16px system-ui,-apple-system,sans-serif}
+main{max-width:1000px;margin:auto;padding:28px 18px 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.brand{letter-spacing:.16em;font-size:12px;color:var(--accent);font-weight:800}.pill{border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:var(--muted);font-size:12px}
+h1{font-size:clamp(32px,6vw,54px);line-height:1.02;margin:28px 0 12px;letter-spacing:-.04em}p{color:var(--muted);line-height:1.6}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:24px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}.card h2{font-size:15px;margin:0 0 12px}.status{font-size:13px;color:var(--accent)}.art{display:block;width:100%;border-radius:12px;background:#fff;aspect-ratio:1;object-fit:contain}.caption{white-space:pre-wrap;font-size:14px;color:#ddd;overflow-wrap:anywhere}.btn{display:inline-flex;justify-content:center;align-items:center;min-height:44px;padding:11px 15px;border-radius:12px;background:var(--accent);color:#111;font-weight:750;text-decoration:none;border:0}.btn.secondary{background:#25252b;color:#fff;border:1px solid #393941}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.small{font-size:12px;color:var(--muted)}ul{padding-left:18px;color:var(--muted);line-height:1.8}.foot{margin-top:26px;font-size:12px;color:#777}
+</style>
+</head>
+<body><main>
+<div class="top"><div class="brand">WENBOT / CONTROL CENTER</div><div class="pill">AUTOMAÇÃO • GITHUB ACTIONS</div></div>
+<h1>Seu estúdio.<br>Seu bot.</h1>
+<p>Monitore a última arte e as execuções. O painel nunca armazena tokens nem chaves secretas no navegador.</p>
+<div class="grid">
+<section class="card"><h2>Última arte gerada</h2><img class="art" id="art" src="wen_art.jpg" alt="Última arte do WenBot"><p id="updated" class="small">Consultando a última atualização…</p><div class="actions"><a class="btn secondary" href="wen_art.jpg" target="_blank" rel="noreferrer">Abrir imagem</a></div></section>
+<section class="card"><h2>Legenda atual</h2><div id="caption" class="caption">Carregando legenda…</div><div class="actions"><button class="btn secondary" id="copy">Copiar legenda</button></div></section>
+<section class="card"><h2>Execução e publicação</h2><div class="status">● Agendamento configurado: a cada 5 horas</div><p>O bot gera arte com a OpenAI, hospeda a imagem no GitHub Pages e publica diretamente pela Instagram Graph API. O Make não é necessário.</p><div class="actions"><a class="btn" href="https://github.com/gjngngvb-byte/WenBot_Final/actions/workflows/wen_action.yml" target="_blank" rel="noreferrer">Ver execuções</a><a class="btn secondary" href="https://github.com/gjngngvb-byte/WenBot_Final/actions" target="_blank" rel="noreferrer">Abrir GitHub Actions</a></div></section>
+<section class="card"><h2>Configuração necessária</h2><ul><li><code>OPENAI_API_KEY</code>: geração de arte e legendas.</li><li><code>IG_ACCESS_TOKEN</code>: token Meta/Instagram com permissões adequadas.</li><li><code>IG_USER_ID</code>: ID numérico da conta profissional do Instagram.</li><li><code>IG_GRAPH_VERSION</code> (opcional): versão da Graph API.</li></ul><p class="small">Configure em GitHub → Settings → Secrets and variables → Actions. Nunca cole chaves neste painel.</p></section>
+</div>
+<p class="foot">WenBot Final · painel de leitura. Atualize a página para buscar a arte mais recente.</p>
+</main>
+<script>
+const bust='?v='+Date.now();
+document.getElementById('art').src='wen_art.jpg'+bust;
+fetch('wen_art.txt'+bust).then(r=>{if(!r.ok)throw Error();return r.text()}).then(t=>document.getElementById('caption').textContent=t.trim()).catch(()=>document.getElementById('caption').textContent='Não foi possível carregar a legenda.');
+fetch('https://api.github.com/repos/gjngngvb-byte/WenBot_Final/commits?path=wen_art.jpg&per_page=1').then(r=>r.json()).then(d=>{if(d[0]?.commit?.committer?.date)document.getElementById('updated').textContent='Última atualização: '+new Date(d[0].commit.committer.date).toLocaleString('pt-BR')}).catch(()=>document.getElementById('updated').textContent='Última atualização indisponível.');
+document.getElementById('copy').addEventListener('click',async()=>{const t=document.getElementById('caption').textContent;try{await navigator.clipboard.writeText(t);document.getElementById('copy').textContent='Copiado!';}catch(e){document.getElementById('copy').textContent='Selecione e copie o texto';}});
+</script></body></html>
