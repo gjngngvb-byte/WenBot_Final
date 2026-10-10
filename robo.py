@@ -2,6 +2,7 @@ import base64
 import io
 import os
 import random
+import time
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -25,6 +26,29 @@ if not GOOGLE_API_KEY:
     raise RuntimeError("GOOGLE_API_KEY não configurada.")
 
 client = genai.Client(api_key=GOOGLE_API_KEY)
+
+def gerar_conteudo_com_retentativas(**kwargs):
+    """Repete erros temporários do Gemini, como 503 UNAVAILABLE."""
+    ultimo_erro = None
+    for tentativa in range(1, 4):
+        try:
+            return client.models.generate_content(**kwargs)
+        except Exception as erro:
+            ultimo_erro = erro
+            mensagem = str(erro).upper()
+            temporario = any(
+                termo in mensagem
+                for termo in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "500", "INTERNAL")
+            )
+            if not temporario or tentativa == 3:
+                raise
+            espera = tentativa * 15
+            print(
+                f"Gemini temporariamente indisponível "
+                f"(tentativa {tentativa}/3). Nova tentativa em {espera}s..."
+            )
+            time.sleep(espera)
+    raise ultimo_erro
 
 ASSUNTOS = [
     "an impossible animal combining two unrelated creatures",
@@ -61,7 +85,7 @@ Camera/composition: {random.choice(ANGULOS)}
 Make it visually clear, strange and unexpected. Avoid generic fantasy clichés.
 Return ONLY the visual description in English, maximum 220 words.
 """.strip()
-    r = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+    r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=prompt)
     texto = (r.text or "").strip()
     if not texto:
         raise RuntimeError("Gemini não retornou uma ideia.")
@@ -175,7 +199,7 @@ Put hashtags on the last line. Return ONLY the final caption.
 """.strip()
     for tentativa in range(1, 4):
         try:
-            r = client.models.generate_content(model=GEMINI_MODEL, contents=[prompt, imagem])
+            r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=[prompt, imagem])
             legenda = (r.text or "").strip()
             if legenda and "#wen" in legenda.lower() and "#art" in legenda.lower():
                 return legenda
