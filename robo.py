@@ -79,11 +79,11 @@ ANGULOS = [
 
 def gerar_ideia():
     prompt = f"""
-Create ONE unique visual concept for a surreal black-ink drawing.
+Create ONE unique concept for a clean, digital-looking 2D illustration made only with black lines on a pure white background.
 Base concept: {random.choice(ASSUNTOS)}
 Camera/composition: {random.choice(ANGULOS)}
-Make it visually clear, strange and unexpected. Avoid generic fantasy clichés.
-Return ONLY the visual description in English, maximum 220 words.
+Build the subject from simple, readable geometric shapes and confident outlines. Make it imaginative, visually attractive, strange but understandable, and clearly different from generic fantasy clichés. Prioritize a strong silhouette and an unconventional camera angle without any 3D depth, lighting, or shading.
+Do not copy any reference image. Return ONLY the visual description in English, maximum 180 words.
 """.strip()
     r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=prompt)
     texto = (r.text or "").strip()
@@ -228,24 +228,26 @@ def criar_arte():
     ideia = gerar_ideia()
     print(f"Conceito: {ideia}")
     prompt = f"""
-Hand-drawn black ink pen illustration on pure white paper.
+Create a polished, clean, digital-looking 2D line illustration.
 
 VISUAL CONCEPT:
 {ideia}
 
-STYLE:
-authentic hand-drawn pen illustration, black ink only, crisp fine linework,
-varied natural line weight, controlled cross-hatching, clear silhouette,
-strong visual hierarchy, detailed but readable shapes, clean white negative space,
-surreal artistic concept, unconventional camera angle, dramatic foreshortening,
-dynamic perspective, balanced composition, monochrome.
-Keep the bottom-right corner relatively simple and uncluttered for a small
-signature that will be added afterward. The artwork itself must contain no writing.
+MANDATORY ART STYLE:
+- Pure white background (#FFFFFF).
+- Pure black lines and outlines only (#000000). Strict monochrome black and white.
+- Flat 2D illustration, built from simple geometric shapes, clean curves, and deliberate outlines.
+- Clear, elegant silhouette; balanced composition; visually attractive and imaginative subject.
+- Minimal, intentional linework. Use only the details needed to make the subject distinctive and readable.
+- Always use an unconventional camera angle or unusual viewpoint, while keeping the image clearly flat 2D.
+- Leave the bottom-right corner clean and uncluttered for the signature added afterward.
+- The artwork itself must contain no text, letters, signature, logo, or watermark.
+- Invent a new composition for every image. Use the concept as inspiration only; never recreate a reference image.
 
-STRICTLY AVOID:
-color, photorealism, 3D render, painting, watercolor, colored pencil,
-gray digital gradients, captions, letters, signatures, logos, watermark,
-border, frame, paper texture, beige background.
+STRICTLY FORBIDDEN:
+Any color, colored accents, gray, grayscale tones, gradients, shading, shadows, highlights, lighting effects, 3D appearance, perspective depth rendering, volume modeling, cross-hatching, scribbles, sketchy strokes, paint texture, blending, halftones, texture, photorealism, watercolor, pencil, canvas or paper texture, borders, frames, beige/off-white background, text, lettering, logos, and watermarks.
+
+The final image must look like a crisp vector-style black line drawing on pure white, with no fill colors and no simulated light or depth.
 """.strip()
     img = baixar_imagem(prompt)
     salvar_arte(img)
