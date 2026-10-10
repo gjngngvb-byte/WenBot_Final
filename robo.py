@@ -74,8 +74,15 @@ def baixar_imagem(prompt):
             "do ambiente onde o WenBot é executado."
         )
 
-    # FLUX.1 schnell aceita prompts de até 2048 caracteres.
-    prompt_api = prompt[:2000]
+    # FLUX.1 schnell aceita prompts de até 2048 caracteres. Preserva
+    # as instruções de estilo mesmo quando a ideia do Gemini é longa.
+    if "VISUAL CONCEPT:" in prompt and "\n\nSTYLE:" in prompt:
+        inicio, resto = prompt.split("VISUAL CONCEPT:", 1)
+        conceito, estilo = resto.split("\n\nSTYLE:", 1)
+        prompt_api = f"{inicio}VISUAL CONCEPT:{conceito[:1250]}\n\nSTYLE:{estilo}"
+    else:
+        prompt_api = prompt[:2000]
+    prompt_api = prompt_api[:2048]
     url = (
         "https://api.cloudflare.com/client/v4/accounts/"
         f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/{CLOUDFLARE_IMAGE_MODEL}"
