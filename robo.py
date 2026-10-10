@@ -273,7 +273,8 @@ MANDATORY ART STYLE:
 - Minimal, intentional linework. Use only the details needed to make the subject distinctive and readable.
 - Always use an unconventional camera angle or unusual viewpoint, while keeping the image clearly flat 2D.
 - Leave the bottom-right corner clean and uncluttered for the signature added afterward.
-- The artwork itself must contain no text, letters, signature, logo, or watermark.
+- Absolutely NO text or typography anywhere inside the generated artwork: no words, letters, numbers, symbols resembling writing, captions, labels, signatures, logos, brand names, trademarks, watermarks, artist marks, AI marks, or generator/provider marks.
+- The ONLY allowed signature is the exact word "Wen", which is added afterward by the bot as a separate overlay. Do not draw or generate "Wen" inside the artwork.
 - Invent a new composition for every image. Use the concept as inspiration only; never recreate a reference image.
 
 STRICTLY FORBIDDEN:
