@@ -1,7 +1,7 @@
+import base64
 import io
 import os
 import random
-import urllib.parse
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -13,6 +13,12 @@ NOME_DO_ARQUIVO_FONTE = "Quentin.otf"
 TAMANHO_DA_ASSINATURA = 60
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 GEMINI_MODEL = "gemini-3.8-flash"
+
+# Cloudflare Workers AI: use apenas o plano Free para evitar cobranças.
+CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN")
+CLOUDFLARE_IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell"
+CLOUDFLARE_IMAGE_STEPS = 4
 
 if not GOOGLE_API_KEY:
     raise RuntimeError("GOOGLE_API_KEY não configurada.")
@@ -61,24 +67,68 @@ Return ONLY the visual description in English, maximum 220 words.
     return texto[:1800]
 
 def baixar_imagem(prompt):
+    """Gera a imagem com Cloudflare Workers AI, sem alterar o fluxo do Gemini/Instagram."""
+    if not CLOUDFLARE_ACCOUNT_ID or not CLOUDFLARE_API_TOKEN:
+        raise RuntimeError(
+            "Configure CLOUDFLARE_ACCOUNT_ID e CLOUDFLARE_API_TOKEN nos Secrets "
+            "do ambiente onde o WenBot é executado."
+        )
+
+    # FLUX.1 schnell aceita prompts de até 2048 caracteres.
+    prompt_api = prompt[:2000]
+    url = (
+        "https://api.cloudflare.com/client/v4/accounts/"
+        f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/{CLOUDFLARE_IMAGE_MODEL}"
+    )
+    payload = {
+        "prompt": prompt_api,
+        "seed": random.randint(1, 999999999),
+        "steps": CLOUDFLARE_IMAGE_STEPS,
+    }
+    headers = {
+        "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
     ultimo_erro = None
     for tentativa in range(1, 4):
         try:
-            seed = random.randint(1, 999999999)
-            url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt, safe='')}?width=1024&height=1024&seed={seed}&nologo=true&model=flux"
-            print(f"Gerando imagem (tentativa {tentativa}/3)...")
-            r = requests.get(url, timeout=180)
+            print(
+                f"Gerando imagem com Cloudflare Workers AI "
+                f"(tentativa {tentativa}/3)..."
+            )
+            r = requests.post(url, headers=headers, json=payload, timeout=180)
             r.raise_for_status()
-            if "image" not in r.headers.get("Content-Type", "").lower():
-                raise RuntimeError("Servidor não retornou uma imagem.")
-            img = Image.open(io.BytesIO(r.content)).convert("RGBA")
+            data = r.json()
+
+            if data.get("success") is False:
+                errors = data.get("errors") or []
+                mensagem = "; ".join(
+                    str(item.get("message", item)) for item in errors
+                ) or "Cloudflare retornou success=false."
+                raise RuntimeError(mensagem)
+
+            resultado = data.get("result") or {}
+            imagem_b64 = resultado.get("image")
+            if not imagem_b64:
+                raise RuntimeError("Cloudflare não retornou o campo de imagem.")
+
+            img = Image.open(io.BytesIO(base64.b64decode(imagem_b64))).convert("RGBA")
             if img.width < 100 or img.height < 100:
-                raise RuntimeError("Imagem inválida.")
+                raise RuntimeError("Cloudflare retornou uma imagem inválida.")
             return img
         except Exception as e:
             ultimo_erro = e
-            print(f"Falha: {e}")
-    raise RuntimeError(f"Falha após 3 tentativas: {ultimo_erro}")
+            print(f"Falha no Cloudflare Workers AI: {e}")
+            # Erros de autenticação/configuração/limite não melhoram repetindo
+            # a mesma chamada, então interrompe para evitar tentativas inúteis.
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            if status in (400, 401, 403, 404, 429):
+                break
+
+    raise RuntimeError(
+        f"Falha ao gerar imagem com Cloudflare Workers AI: {ultimo_erro}"
+    )
 
 def salvar_arte(img):
     fundo = Image.new("RGBA", img.size, "WHITE")
