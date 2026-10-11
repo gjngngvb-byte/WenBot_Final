@@ -3,25 +3,1090 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galeria Wen</title>
+    <title>WenBot - Interface de Controle</title>
     <style>
-        body { background-color: #111; color: #eee; font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .moldura { background: white; padding: 15px 15px 40px 15px; box-shadow: 0 0 30px rgba(255,255,255,0.1); max-width: 500px; width: 100%; transform: rotate(-1deg); }
-        img { width: 100%; height: auto; border: 1px solid #000; }
-        .assinatura { font-family: cursive; color: #000; text-align: right; margin-top: 10px; font-size: 1.2rem; font-weight: bold; }
-        .texto-ia { margin-top: 30px; text-align: center; color: #888; font-style: italic; max-width: 500px; }
-        .status { margin-top: 50px; font-size: 10px; color: #444; border: 1px solid #333; padding: 5px 10px; border-radius: 20px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #00d4ff, #7b61ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: #aaa;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            height: fit-content;
+        }
+
+        .panel h2 {
+            color: #00d4ff;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .param-group {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .param-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .param-group input,
+        .param-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .param-group input:focus,
+        .param-group select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn {
+            background: linear-gradient(to right, #00d4ff, #7b61ff);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(to right, #6c5ce7, #a29bfe);
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(to right, #ff6b6b, #ff5252);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .status {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+        }
+
+        .status.running {
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .image-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .image-container img:hover {
+            transform: scale(1.02);
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #aaa;
+            font-style: italic;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-top: 2px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-section {
+            margin-top: 20px;
+        }
+
+        .info-section h3 {
+            color: #ff9ff3;
+            margin-bottom: 10px;
+        }
+
+        .info-section p {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 60px;
+        }
+
+        .logs {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            margin-top: 10px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .log-entry.timestamp {
+            color: #888;
+            font-size: 0.8rem;
+        }
+
+        .log-entry.success {
+            color: #00ff88;
+        }
+
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .log-entry.info {
+            color: #00d4ff;
+        }
+
+        /* Download Button */
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(to right, #00b894, #00cec9);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
+        }
+
+        .download-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            min-width: 300px;
+            max-width: 350px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in forwards;
+            animation-fill-mode: forwards;
+            animation-delay: 3s;
+            opacity: 0;
+            transform: translateX(100%);
+        }
+
+        .toast.show {
+            animation: toastIn 0.3s ease-out forwards;
+            animation-delay: 0s;
+        }
+
+        .toast.hide {
+            animation: toastOut 0.3s ease-in forwards;
+        }
+
+        @keyframes toastIn {
+            to {
+                opacity: 1;
+                translateX: 0;
+            }
+        }
+
+        @keyframes toastOut {
+            to {
+                opacity: 0;
+                translateX: 100%;
+            }
+        }
+
+        .toast-icon {
+            font-size: 1.2rem;
+        }
+
+        .toast-success {
+            background: linear-gradient(to right, #00b894, #00cec9);
+            border-left: 4px solid #00ff88;
+        }
+
+        .toast-error {
+            background: linear-gradient(to right, #d63031, #e17055);
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .toast-info {
+            background: linear-gradient(to right, #0984e3, #6c5ce7);
+            border-left: 4px solid #00d4ff;
+        }
+
+        .toast-warning {
+            background: linear-gradient(to right, #fdcb6e, #e17055);
+            border-left: 4px solid #ffeaa7;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .toast-message {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: white;
+            opacity: 0.7;
+            font-size: 1.25rem;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: #888;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .toast-container {
+                top: 10px;
+                right: 10px;
+            }
+
+            .toast {
+                min-width: 250px;
+                padding: 14px 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .panel {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .param-group {
+                margin-bottom: 10px;
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="moldura">
-        <img src="wen_art.jpg" alt="Arte gerada" onerror="this.src='https://placehold.co/600x600/EEE/31343C?text=Aguardando+Ciclo...'">
-        <div class="assinatura">Wen</div>
+    <div class="container">
+        <header>
+            <h1>🎨 WenBot Controller</h1>
+            <p class="subtitle">Interface de Controle para Geração de Arte AI</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Painel de Controle -->
+            <div class="panel">
+                <h2>⚙️ Painel de Controle</h2>
+
+                <!-- Parâmetros de Geração -->
+                <div class="param-group">
+                    <label for="width">Largura da Imagem (px)</label>
+                    <input type="number" id="width" min="256" max="2048" value="1024">
+                </div>
+
+                <div class="param-group">
+                    <label for="height">Altura da Imagem (px)</label>
+                    <input type="number" id="height" min="256" max="2048" value="1024">
+                </div>
+
+                <div class="param-group">
+                    <label for="seed">Semente (Seed) - Opcional</label>
+                    <input type="number" id="seed" placeholder="Deixe vazio para aleatório">
+                    <small>Use o mesmo valor para resultados reproduzíveis</small>
+                </div>
+
+                <div class="param-group">
+                    <label for="model">Modelo de IA</label>
+                    <select id="model">
+                        <option value="gemini-3.8-flash">Gemini 3.8 Flash (padrão)</option>
+                        <option value="gemini-3.5-pro">Gemini 3.5 Pro</option>
+                        <option value="cloudflare-flux">Cloudflare FLUX.2 Klein</option>
+                    </select>
+                </div>
+
+                <div class="param-group">
+                    <label for="attempts">Número de Tentativas</label>
+                    <input type="number" id="attempts" min="1" max="10" value="3">
+                </div>
+
+                <div class="controls">
+                    <button class="btn" id="generateBtn">🚀 Gerar Nova Arte</button>
+                    <button class="btn btn-secondary" id="resetBtn">🔄 Reiniciar Visualização</button>
+                    <button class="btn btn-secondary" id="logsBtn">📋 Ver Logs</button>
+                    <button class="btn download-btn" id="downloadBtn" disabled>💾 Baixar Arte</button>
+                </div>
+
+                <div class="status" id="statusDisplay">
+                    Pronto para gerar arte. Configure os parâmetros e clique em "Gerar Nova Arte".
+                </div>
+
+                <div id="logsContainer" style="display: none;">
+                    <h3>📋 Logs de Execução</h3>
+                    <div class="logs" id="logsDisplay">
+                        <!-- Logs serão inseridos aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel de Visualização -->
+            <div class="panel">
+                <h2>🖼️ Visualização da Arte</h2>
+
+                <div class="image-container">
+                    <img id="artImage" src="wen_art.jpg" alt="Arte Wen" onerror="this.src='https://placehold.co/600x600/1a1a2e/ffffff?text=WenBot+Art'; this.onerror=null;" onclick="window.open(this.src, '_blank')">
+                    <div class="loading" id="loadingOverlay" style="display: none;">
+                        Gerando arte... <div class="spinner"></div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>📝 Legenda/Descrição</h3>
+                    <p id="artLegend">Carregando legenda...</p>
+                    <button class="download-btn" id="copyLegendBtn">📋 Copiar Legenda</button>
+                </div>
+
+                <div class="info-section">
+                    <h3>💡 Conceito Original</h3>
+                    <p id="artIdea">Carregando conceito...</p>
+                    <button class="download-btn" id="copyIdeaBtn">📋 Copiar Conceito</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" style="grid-column: 1 / -1;">
+            <h2>📊 Estatísticas e Informações</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div>
+                    <h3>📅 Última Atualização</h3>
+                    <p id="lastUpdate">Carregando...</p>
+                </div>
+                <div>
+                    <h3>🔧 Sistema</h3>
+                    <p id="systemInfo">Verificando conexão com backend...</p>
+                </div>
+                <div>
+                    <h3>📁 Arquivos</h3>
+                    <p id="fileInfo">Contando...</p>
+                </div>
+                <div>
+                    <h3>⚡ Status do Backend</h3>
+                    <p id="backendStatus">Desconhecido</p>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="texto-ia" id="legenda">Carregando pensamento...</div>
-    <div class="status">ATUALIZADO A CADA 5 HORAS VIA GITHUB ACTIONS</div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <script>
-        fetch('wen_art.txt').then(r => r.text()).then(t => document.getElementById('legenda').innerText = t).catch(e => document.getElementById('legenda').innerText = "Sem legenda.");
+        // Estado da aplicação
+        let isGenerating = false;
+        let currentProcessId = null;
+        let pollingInterval = null;
+        let statusPollingInterval = null;
+        const BASE_URL = window.location.origin; // Same origin as frontend
+
+        // Elementos DOM
+        const generateBtn = document.getElementById('generateBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const logsBtn = document.getElementById('logsBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const copyLegendBtn = document.getElementById('copyLegendBtn');
+        const copyIdeaBtn = document.getElementById('copyIdeaBtn');
+        const statusDisplay = document.getElementById('statusDisplay');
+        const logsContainer = document.getElementById('logsContainer');
+        const logsDisplay = document.getElementById('logsDisplay');
+        const artImage = document.getElementById('artImage');
+        const artLegend = document.getElementById('artLegend');
+        const artIdea = document.getElementById('artIdea');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const lastUpdateEl = document.getElementById('lastUpdate');
+        const systemInfoEl = document.getElementById('systemInfo');
+        const fileInfoEl = document.getElementById('fileInfo');
+        const backendStatusEl = document.getElementById('backendStatus');
+        const toastContainer = document.getElementById('toastContainer');
+
+        // Parâmetros
+        const widthInput = document.getElementById('width');
+        const heightInput = document.getElementById('height');
+        const seedInput = document.getElementById('seed');
+        const modelSelect = document.getElementById('model');
+        const attemptsInput = document.getElementById('attempts');
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCurrentData();
+            checkBackendHealth();
+            startStatusPolling();
+
+            // Event Listeners
+            generateBtn.addEventListener('click', handleGenerateArt);
+            resetBtn.addEventListener('click', resetView);
+            logsBtn.addEventListener('click', toggleLogs);
+            downloadBtn.addEventListener('click', downloadArt);
+            copyLegendBtn.addEventListener('click', () => copyToClipboard(artLegend.textContent, 'Legenda copiada!'));
+            copyIdeaBtn.addEventListener('click', () => copyToClipboard(artIdea.textContent, 'Conceito copiado!'));
+        });
+
+        function loadCurrentData() {
+            // Carrega a arte atual
+            const timestamp = new Date().getTime();
+            artImage.src = `wen_art.jpg?${timestamp}`;
+
+            // Carrega a legenda
+            fetch('wen_art.txt?t=' + timestamp)
+                .then(response => response.text())
+                .then(text => {
+                    artLegend.textContent = text || "Nenhuma legenda disponível";
+                })
+                .catch(() => {
+                    artLegend.textContent = "Erro ao carregar legenda";
+                });
+
+            // Carrega o conceito/ideia
+            fetch('wen_art_idea.txt?t=' + timestamp)
+                .then(response => response.text())
+                .then(text => {
+                    artIdea.textContent = text || "Nenhum conceito disponível";
+                })
+                .catch(() => {
+                    artIdea.textContent = "Erro ao carregar conceito";
+                });
+
+            // Atualiza informações do arquivo
+            updateFileInfo();
+        }
+
+        function updateFileInfo() {
+            // In a real implementation, this would call an API endpoint
+            // For now, we'll simulate or use file timestamps if available
+            lastUpdateEl.textContent = new Date().toLocaleString('pt-BR');
+            systemInfoEl.textContent = "Bot Wen • Interface pronta";
+            fileInfoEl.textContent = "Aguardando dados...";
+        }
+
+        function checkBackendHealth() {
+            fetch(`${BASE_URL}/api/health`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'healthy') {
+                        backendStatusEl.textContent = "✅ Backend conectado";
+                        backendStatusEl.style.color = "#00ff88";
+                    } else {
+                        backendStatusEl.textContent = "⚠️ Backend com problemas";
+                        backendStatusEl.style.color = "#ffaa00";
+                    }
+                })
+                .catch(() => {
+                    backendStatusEl.textContent = "❌ Backend não disponível";
+                    backendStatusEl.style.color = "#ff6b6b";
+                    // Show warning that we're in simulation mode
+                    showToast('warning', 'Modo Simulação', 'Backend não detectado. Executando em modo simulação.', 5000);
+                });
+        }
+
+        function startStatusPolling() {
+            // Poll backend status every 30 seconds
+            statusPollingInterval = setInterval(checkBackendHealth, 30000);
+        }
+
+        function stopStatusPolling() {
+            if (statusPollingInterval) {
+                clearInterval(statusPollingInterval);
+                statusPollingInterval = null;
+            }
+        }
+
+        // Sistema de Notificações Toast
+        function showToast(type, title, message, duration = 4000) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-icon">${getToastIcon(type)}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" aria-label="Fechar notificação">&times;</button>
+            `;
+
+            // Adiciona ao container
+            toastContainer.appendChild(toast);
+
+            // Força reflow para animação
+            toast.offsetHeight;
+
+            // Mostra o toast
+            toast.classList.add('show');
+
+            // Configura auto-remocão
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                // Remove do DOM após animação de saída
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.parentElement.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+
+            // Permite fechar manualmente
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.addEventListener('click', () => {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.parentElement.removeChild(toast);
+                    }
+                }, 300);
+            });
+        }
+
+        function getToastIcon(type) {
+            const icons = {
+                success: '✅',
+                error: '❌',
+                info: 'ℹ️',
+                warning: '⚠️'
+            };
+            return icons[type] || 'ℹ️';
+        }
+
+        async function handleGenerateArt() {
+            if (isGenerating) return;
+
+            // Collect parameters
+            const params = {
+                width: parseInt(widthInput.value),
+                height: parseInt(heightInput.value),
+                seed: seedInput.value ? parseInt(seedInput.value) : null,
+                model: modelSelect.value,
+                attempts: parseInt(attemptsInput.value)
+            };
+
+            // Validate
+            if (isNaN(params.width) || params.width < 256 || params.width > 2048) {
+                showToast('error', 'Erro de Validação', 'Largura deve estar entre 256 e 2048 pixels');
+                return;
+            }
+
+            if (isNaN(params.height) || params.height < 256 || params.height > 2048) {
+                showToast('error', 'Erro de Validação', 'Altura deve estar entre 256 e 2048 pixels');
+                return;
+            }
+
+            isGenerating = true;
+            generateBtn.disabled = true;
+            generateBtn.textContent = "Gerando...";
+            downloadBtn.disabled = true;
+            statusDisplay.textContent = "Iniciando geração de arte...";
+            statusDisplay.className = "status running";
+            loadingOverlay.style.display = "flex";
+            clearLogs();
+            addLog("info", "Iniciando processo de geração de arte...");
+
+            try {
+                // Notificação de início
+                showToast('info', 'WenBot', 'Iniciando geração de arte com parâmetros personalizados...', 3000);
+
+                // Try to call backend API
+                const response = await fetch(`${BASE_URL}/api/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(params)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Backend error: ${response.status}`);
+                }
+
+                const result = await response.json();
+                currentProcessId = result.process_id;
+
+                // Start polling for status and logs
+                startProcessPolling(currentProcessId);
+
+            } catch (error) {
+                // Backend not available or error - fall back to simulation
+                addLog("warning", `Backend não disponível: ${error.message}. Executando em modo simulação.`);
+                showToast('warning', 'Modo Simulação', 'Backend não disponível. Executando simulação local.', 5000);
+
+                // Run simulation instead
+                await simulateBotProcess(params);
+
+                // After simulation, reload data
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                loadCurrentData();
+
+                addLog("success", "Arte gerada com sucesso (simulação)!");
+                statusDisplay.textContent = "Arte gerada com sucesso! Atualizando visualização...";
+
+                // Notificação de sucesso
+                showToast('success', 'WenBot', 'Nova arte gerada com sucesso!', 5000);
+            } finally {
+                // Restore state after a small delay
+                setTimeout(() => {
+                    isGenerating = false;
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = "🚀 Gerar Nova Arte";
+                    statusDisplay.textContent = "Pronto para gerar nova arte.";
+                    statusDisplay.className = "status";
+                    loadingOverlay.style.display = "none";
+
+                    // Enable download button if we have an image
+                    if (artImage.src && !artImage.src.includes('placehold.co')) {
+                        downloadBtn.disabled = false;
+                    }
+                }, 1500);
+            }
+        }
+
+        function startProcessPolling(processId) {
+            // Poll for process status every 2 seconds
+            pollingInterval = setInterval(() => {
+                checkProcessStatus(processId);
+            }, 2000);
+        }
+
+        function stopProcessPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+
+        async function checkProcessStatus(processId) {
+            try {
+                const response = await fetch(`${BASE_URL}/api/status/${processId}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Update status display
+                if (data.status === 'running') {
+                    statusDisplay.textContent = "Processo em execução...";
+                    statusDisplay.className = "status running";
+                } else if (data.status === 'completed') {
+                    statusDisplay.textContent = "Geração concluída! Atualizando resultados...";
+                    statusDisplay.className = "status";
+                    stopProcessPolling();
+
+                    // Wait a bit then reload the art
+                    setTimeout(() => {
+                        loadCurrentData();
+                        addLog("success", "Arte gerada com sucesso!");
+                        showToast('success', 'WenBot', 'Nova arte gerada com sucesso!', 5000);
+                    }, 2000);
+                } else if (data.status === 'error') {
+                    statusDisplay.textContent = "Erro durante a geração.";
+                    statusDisplay.className = "status";
+                    stopProcessPolling();
+
+                    const errorMsg = data.error || 'Erro desconhecido';
+                    addLog("error", `Erro na geração: ${errorMsg}`);
+                    showToast('error', 'WenBot', `Erro: ${errorMsg}`, 6000);
+                }
+
+                // Update logs if available
+                if (data.logs && data.logs.length > 0) {
+                    updateLogsDisplay(data.logs);
+                }
+
+            } catch (error) {
+                // If we can't reach the backend, we might be in simulation mode
+                // For now, we'll just log it but not fail
+                addLog("info", `Verificando status: ${error.message}`);
+            }
+        }
+
+        function updateLogsDisplay(logs) {
+            // Clear and rebuild logs display
+            logsDisplay.innerHTML = '';
+            logs.forEach(log => {
+                addLogFromObject(log);
+            });
+            // Scroll to bottom
+            logsDisplay.scrollTop = logsDisplay.scrollHeight;
+        }
+
+        function addLogFromObject(logObj) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${logObj.level || 'info'}`;
+            const timestamp = new Date(logObj.timestamp).toLocaleTimeString('pt-BR');
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${logObj.message}`;
+            logsDisplay.appendChild(logEntry);
+        }
+
+        async function simulateBotProcess(params) {
+            // Simula os passos do robo.py com os parâmetros fornecidos
+            addLog("info", `Etapa 1: Gerando conceito criativo (largura: ${params.width}px, altura: ${params.height}px)...`);
+            await sleep(1500);
+
+            addLog("info", "Etapa 2: Criando prompt para geração de imagem...");
+            await sleep(1000);
+
+            addLog("info", `Etapa 3: Usando modelo ${params.model} com ${params.attempts} tentativas máximas...`);
+            await sleep(2000);
+
+            addLog("info", "Etapa 4: Baixando e processando imagem gerada...");
+            await sleep(1500);
+
+            addLog("info", "Etapa 5: Aplicando assinatura 'Wen'...");
+            await sleep(1000);
+
+            addLog("info", "Etapa 6: Analisando imagem para criar legenda...");
+            await sleep(2000);
+
+            addLog("info", "Etapa 7: Salvando arquivos...");
+            await sleep(1000);
+
+            // Update demo files with parameters
+            await updateDemoFiles(params);
+        }
+
+        async function updateDemoFiles(params) {
+            // Cria conteúdo de demonstração para os arquivos baseado nos parâmetros
+            const concepts = [
+                "an impossible animal combining two unrelated creatures",
+                "a strange machine with an impossible purpose",
+                "a surreal building that could not exist in the real world",
+                "a mysterious character made from an unexpected material",
+                "a hybrid between nature and advanced technology"
+            ];
+
+            // Use seed if provided for deterministic selection
+            const seedValue = params.seed || Date.now();
+            const seededRandom = seedRandom(seedValue);
+            const randomConcept = concepts[seededRandom() * concepts.length | 0];
+
+            const randomLegend = [
+                `Arte gerada em ${params.width}×${params.height}px com semente ${params.seed || 'aleatória'}.\n\n#wen #art #arte #desenho #surrealismo`,
+                `Explorando conceitos impossíveis em ${params.width}×${params.height}. Modelo: ${params.model}.\n\n#wen #art #criatividade #design #inovação`,
+                `Nas bordas do possível, encontramos a essência da verdadeira criatividade em ${params.width}×${params.height}px.\n\n#wen #art #arteconceitual #digital #futurismo`,
+                `O olho que vê além do evidente descobre universos inteiros em ${params.width}×${params.height}px de linhas simples.\n\n#wen #art #ilustração #conceito #visionário`,
+                `Não são os limites que nos definem, mas nossa capacidade de ir além deles em ${params.width}×${params.height}px.\n\n#wen #art #expressão #artecontemporânea #experimental`
+            ][seededRandom() * 5 | 0];
+
+            // In a real environment, these would be written by robo.py
+            // For simulation, we'll just update the display
+            addLog("info", "Arquivos simulados atualizados (em ambiente real, o robo.py faria isso)");
+
+            // Update the display immediately for demo purposes
+            artLegend.textContent = randomLegend;
+            artIdea.textContent = randomConcept;
+
+            // Update image timestamp to trigger reload
+            const timestamp = new Date().getTime();
+            artImage.src = `wen_art.jpg?${timestamp}`;
+        }
+
+        function seedRandom(seed) {
+            // Simple seeded random function for demo purposes
+            let x = seed;
+            return () => {
+                x = (x * 9301 + 49297) % 233280;
+                return x / 233280;
+            };
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function resetView() {
+            loadCurrentData();
+            addLog("info", "Visualização resetada para o estado atual.");
+            showToast('info', 'WenBot', 'Visualização atualizada com os dados mais recentes.');
+        }
+
+        function toggleLogs() {
+            if (logsContainer.style.display === "none" || logsContainer.style.display === "") {
+                logsContainer.style.display = "block";
+                logsBtn.textContent = "📋 Esconder Logs";
+            } else {
+                logsContainer.style.display = "none";
+                logsBtn.textContent = "📋 Ver Logs";
+            }
+        }
+
+        function clearLogs() {
+            logsDisplay.innerHTML = '';
+        }
+
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            logsDisplay.appendChild(logEntry);
+            logsDisplay.scrollTop = logsDisplay.scrollHeight;
+        }
+
+        function downloadArt() {
+            // Trigger download of the current image
+            const link = document.createElement('a');
+            link.href = artImage.src.replace(/(\?\d+)$/, ''); // Remove timestamp param for clean filename
+            link.download = `wen_art_${new Date().toISOString().slice(0,16).replace(/[:T]/g, '_')}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('success', 'Download', 'Iniciando download da arte gerada...');
+        }
+
+        function copyToClipboard(text, successMessage) {
+            if (!text || text.trim() === '') {
+                showToast('warning', 'Aviso', 'Nenhum conteúdo disponível para copiar');
+                return;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('success', 'Copiado', successMessage);
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('success', 'Copiado', successMessage);
+            });
+        }
+
+        // Handle visibility change para pausar polling quando aba não está visível
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (pollingInterval) stopProcessPolling();
+                if (statusPollingInterval) stopStatusPolling();
+            } else {
+                if (currentProcessId) startProcessPolling(currentProcessId);
+                startStatusPolling();
+            }
+        });
+
+        // Limpa logs antigos após 50 entradas para evitar acúmulo
+        function cleanupLogs() {
+            const maxLogs = 50;
+            if (logsDisplay.children.length > maxLogs) {
+                const excess = logsDisplay.children.length - maxLogs;
+                for (let i = 0; i < excess; i++) {
+                    logsDisplay.removeChild(logsDisplay.firstChild);
+                }
+            }
+        }
+
+        // Verifica periodicamente se há novos logs para limpar
+        setInterval(cleanupLogs, 30000);
     </script>
 </body>
 </html>
