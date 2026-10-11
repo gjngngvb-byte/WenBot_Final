@@ -822,15 +822,47 @@
                 startProcessPolling(currentProcessId);
 
             } catch (error) {
-                // GitHub Pages serves static files; it cannot execute app.py.
-                // Do not pretend a real image was generated when the API is unavailable.
+                // Sem backend Flask configurado, aciona o workflow via função segura do Netlify.
                 stopProcessPolling();
                 currentProcessId = null;
-                const workflowUrl = 'https://github.com/gjngngvb-byte/WenBot_Final/actions/workflows/wen_action.yml';
-                addLog("warning", `API indisponível: ${error.message}. A geração real precisa do backend ou do workflow do GitHub Actions.`);
-                statusDisplay.className = "status";
-                statusDisplay.innerHTML = 'O backend não está conectado. O GitHub Pages não executa Python. Para gerar uma arte real, abra <a href="' + workflowUrl + '" target="_blank" rel="noopener noreferrer" style="color:#00d4ff;text-decoration:underline">GitHub Actions: Bot Wen Instagram</a> e clique em “Run workflow”.';
-                showToast('warning', 'Backend não conectado', 'Nenhuma arte foi gerada. Use o link exibido no status para iniciar o workflow real.', 6000);
+
+                if (configuredApiUrl) {
+                    addLog("error", `Falha no backend configurado: ${error.message}`);
+                    statusDisplay.className = "status";
+                    statusDisplay.textContent = 'Não foi possível conectar ao backend configurado. Confira a URL e tente novamente.';
+                    showToast('error', 'Falha no backend', error.message, 6000);
+                } else {
+                    const password = window.prompt('Digite a senha de acionamento configurada no Netlify:');
+                    if (!password) {
+                        statusDisplay.className = "status";
+                        statusDisplay.textContent = 'Operação cancelada. Nenhum workflow foi iniciado.';
+                        addLog("warning", "Acionamento cancelado pelo usuário.");
+                        return;
+                    }
+
+                    try {
+                        const triggerResponse = await fetch('https://wenbot-trigger.netlify.app/.netlify/functions/trigger-workflow', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password })
+                        });
+                        const triggerResult = await triggerResponse.json().catch(() => ({}));
+                        if (!triggerResponse.ok) {
+                            throw new Error(triggerResult.error || `Erro no serviço de acionamento (${triggerResponse.status})`);
+                        }
+
+                        const workflowUrl = triggerResult.workflow_url || 'https://github.com/gjngngvb-byte/WenBot_Final/actions/workflows/wen_action.yml';
+                        statusDisplay.className = "status running";
+                        statusDisplay.innerHTML = 'Pedido enviado! O GitHub Actions está iniciando a geração. Isso pode levar alguns minutos. <a href="' + workflowUrl + '" target="_blank" rel="noopener noreferrer" style="color:#00d4ff;text-decoration:underline">Acompanhar execução</a>. Depois que terminar, atualize a página para carregar a nova arte.';
+                        addLog("success", "Pedido enviado ao GitHub Actions.");
+                        showToast('success', 'Geração iniciada', 'O GitHub Actions vai gerar a arte. Atualize o site após a execução terminar.', 7000);
+                    } catch (triggerError) {
+                        statusDisplay.className = "status";
+                        statusDisplay.textContent = `Não foi possível iniciar a geração: ${triggerError.message}`;
+                        addLog("error", triggerError.message);
+                        showToast('error', 'Não foi possível iniciar', triggerError.message, 7000);
+                    }
+                }
             } finally {
                 isGenerating = false;
                 generateBtn.disabled = false;
