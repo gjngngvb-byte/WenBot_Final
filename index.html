@@ -616,20 +616,25 @@
         const modelSelect = document.getElementById('model');
         const attemptsInput = document.getElementById('attempts');
 
-        // Inicialização
-        document.addEventListener('DOMContentLoaded', () => {
+        // Inicializa a interface mesmo se o script for carregado após DOMContentLoaded.
+        function initializeWenBotUI() {
             loadCurrentData();
             checkBackendHealth();
             startStatusPolling();
 
-            // Event Listeners
             generateBtn.addEventListener('click', handleGenerateArt);
             resetBtn.addEventListener('click', resetView);
             logsBtn.addEventListener('click', toggleLogs);
             downloadBtn.addEventListener('click', downloadArt);
             copyLegendBtn.addEventListener('click', () => copyToClipboard(artLegend.textContent, 'Legenda copiada!'));
             copyIdeaBtn.addEventListener('click', () => copyToClipboard(artIdea.textContent, 'Conceito copiado!'));
-        });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeWenBotUI, { once: true });
+        } else {
+            initializeWenBotUI();
+        }
 
         function loadCurrentData() {
             // Carrega a arte atual
@@ -814,37 +819,24 @@
                 startProcessPolling(currentProcessId);
 
             } catch (error) {
-                // Backend not available or error - fall back to simulation
-                addLog("warning", `Backend não disponível: ${error.message}. Executando em modo simulação.`);
-                showToast('warning', 'Modo Simulação', 'Backend não disponível. Executando simulação local.', 5000);
-
-                // Run simulation instead
-                await simulateBotProcess(params);
-
-                // After simulation, reload data
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                loadCurrentData();
-
-                addLog("success", "Arte gerada com sucesso (simulação)!");
-                statusDisplay.textContent = "Arte gerada com sucesso! Atualizando visualização...";
-
-                // Notificação de sucesso
-                showToast('success', 'WenBot', 'Nova arte gerada com sucesso!', 5000);
+                // GitHub Pages serves static files; it cannot execute app.py.
+                // Do not pretend a real image was generated when the API is unavailable.
+                stopProcessPolling();
+                currentProcessId = null;
+                const workflowUrl = 'https://github.com/gjngngvb-byte/WenBot_Final/actions/workflows/wen_action.yml';
+                addLog("warning", `API indisponível: ${error.message}. A geração real precisa do backend ou do workflow do GitHub Actions.`);
+                statusDisplay.className = "status";
+                statusDisplay.innerHTML = 'O backend não está conectado. O GitHub Pages não executa Python. Para gerar uma arte real, abra <a href="' + workflowUrl + '" target="_blank" rel="noopener noreferrer" style="color:#00d4ff;text-decoration:underline">GitHub Actions: Bot Wen Instagram</a> e clique em “Run workflow”.';
+                showToast('warning', 'Backend não conectado', 'Nenhuma arte foi gerada. Use o link exibido no status para iniciar o workflow real.', 6000);
             } finally {
-                // Restore state after a small delay
-                setTimeout(() => {
-                    isGenerating = false;
-                    generateBtn.disabled = false;
-                    generateBtn.textContent = "🚀 Gerar Nova Arte";
-                    statusDisplay.textContent = "Pronto para gerar nova arte.";
-                    statusDisplay.className = "status";
-                    loadingOverlay.style.display = "none";
-
-                    // Enable download button if we have an image
-                    if (artImage.src && !artImage.src.includes('placehold.co')) {
-                        downloadBtn.disabled = false;
-                    }
-                }, 1500);
+                isGenerating = false;
+                generateBtn.disabled = false;
+                generateBtn.textContent = "🚀 Gerar Nova Arte";
+                loadingOverlay.style.display = "none";
+                // Only enable download if the current image loaded successfully.
+                if (artImage.complete && artImage.naturalWidth > 0) {
+                    downloadBtn.disabled = false;
+                }
             }
         }
 
