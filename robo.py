@@ -163,12 +163,12 @@ def baixar_imagem(prompt):
                         url, headers=headers, files=arquivos_form, timeout=180
                     )
                 else:
-                    # FLUX.1 Schnell usa JSON e aceita prompt/seed; dimensões são definidas pelo modelo.
-                    # A chamada REST documentada para FLUX.1 Schnell usa campos de formulário.
+                    # FLUX.1 Schnell espera um corpo JSON; data= envia formulário e causa HTTP 400.
+                    # O endpoint REST da Cloudflare aceita prompt e seed neste modelo.
                     r = requests.post(
                         url,
-                        headers=headers,
-                        data={"prompt": prompt_api, "seed": str(seed)},
+                        headers={**headers, "Content-Type": "application/json"},
+                        json={"prompt": prompt_api, "seed": seed},
                         timeout=180,
                     )
 
