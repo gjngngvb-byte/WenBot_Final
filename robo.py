@@ -117,14 +117,13 @@ Return ONLY the visual description in English, maximum 180 words.
     )
 
 def baixar_imagem(prompt):
-    """Gera a imagem com Cloudflare Workers AI, sem alterar o fluxo do Gemini/Instagram."""
+    """Gera com FLUX.2 Klein e tenta FLUX.1 Schnell se houver rate limit/erro transitório."""
     if not CLOUDFLARE_ACCOUNT_ID or not CLOUDFLARE_API_TOKEN:
         raise RuntimeError(
             "Configure CLOUDFLARE_ACCOUNT_ID e CLOUDFLARE_API_TOKEN nos Secrets "
             "do ambiente onde o WenBot é executado."
         )
 
-    # Mantém o conceito e as instruções de estilo no prompt do FLUX.2 Klein 9B.
     if "VISUAL CONCEPT:" in prompt and "\n\nSTYLE:" in prompt:
         inicio, resto = prompt.split("VISUAL CONCEPT:", 1)
         conceito, estilo = resto.split("\n\nSTYLE:", 1)
@@ -132,68 +131,91 @@ def baixar_imagem(prompt):
     else:
         prompt_api = prompt[:2000]
     prompt_api = prompt_api[:2048]
-    url = (
-        "https://api.cloudflare.com/client/v4/accounts/"
-        f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/{CLOUDFLARE_IMAGE_MODEL}"
-    )
-    # FLUX.2 Klein 9B exige multipart/form-data; steps é fixo em 4 no serviço.
-    payload = {
-        "prompt": prompt_api,
-        "width": str(CLOUDFLARE_IMAGE_WIDTH),
-        "height": str(CLOUDFLARE_IMAGE_HEIGHT),
-        "seed": str(random.randint(1, 999999999)),
-    }
-    headers = {
-        "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
-    }
 
+    headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
+    modelos = [
+        (CLOUDFLARE_IMAGE_MODEL, "klein"),
+        ("@cf/black-forest-labs/flux-1-schnell", "schnell"),
+    ]
     ultimo_erro = None
-    for tentativa in range(1, 4):
-        try:
-            print(
-                f"Gerando imagem com Cloudflare Workers AI "
-                f"(tentativa {tentativa}/3)..."
-            )
-            arquivos_form = {
-                chave: (None, valor)
-                for chave, valor in payload.items()
-            }
-            r = requests.post(
-                url,
-                headers=headers,
-                files=arquivos_form,
-                timeout=180,
-            )
-            r.raise_for_status()
-            data = r.json()
 
-            if data.get("success") is False:
-                errors = data.get("errors") or []
-                mensagem = "; ".join(
-                    str(item.get("message", item)) for item in errors
-                ) or "Cloudflare retornou success=false."
-                raise RuntimeError(mensagem)
+    for modelo, formato in modelos:
+        url = (
+            "https://api.cloudflare.com/client/v4/accounts/"
+            f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/{modelo}"
+        )
+        for tentativa in range(1, 3):
+            try:
+                print(
+                    f"Gerando imagem com Cloudflare Workers AI ({modelo}, "
+                    f"tentativa {tentativa}/2)..."
+                )
+                seed = random.randint(1, 999999999)
+                if formato == "klein":
+                    payload = {
+                        "prompt": prompt_api,
+                        "width": str(CLOUDFLARE_IMAGE_WIDTH),
+                        "height": str(CLOUDFLARE_IMAGE_HEIGHT),
+                        "seed": str(seed),
+                    }
+                    arquivos_form = {chave: (None, valor) for chave, valor in payload.items()}
+                    r = requests.post(
+                        url, headers=headers, files=arquivos_form, timeout=180
+                    )
+                else:
+                    # FLUX.1 Schnell usa JSON e aceita prompt/seed; dimensões são definidas pelo modelo.
+                    r = requests.post(
+                        url,
+                        headers={**headers, "Content-Type": "application/json"},
+                        json={"prompt": prompt_api, "seed": seed},
+                        timeout=180,
+                    )
 
-            resultado = data.get("result") or {}
-            imagem_b64 = resultado.get("image")
-            if not imagem_b64:
-                raise RuntimeError("Cloudflare não retornou o campo de imagem.")
+                if r.status_code == 429 and tentativa == 1:
+                    espera = int(r.headers.get("Retry-After", "30"))
+                    espera = max(5, min(espera, 90))
+                    print(f"Limite temporário da Cloudflare (429). Aguardando {espera}s...")
+                    time.sleep(espera)
+                    continue
 
-            img = Image.open(io.BytesIO(base64.b64decode(imagem_b64))).convert("RGBA")
-            if img.width < 100 or img.height < 100:
-                raise RuntimeError("Cloudflare retornou uma imagem inválida.")
-            return img
-        except Exception as e:
-            ultimo_erro = e
-            print(f"Falha no Cloudflare Workers AI: {e}")
-            # Erros de autenticação/configuração/limite não melhoram repetindo
-            # a mesma chamada, então interrompe para evitar tentativas inúteis.
-            status = getattr(getattr(e, "response", None), "status_code", None)
-            if status in (400, 401, 403, 404, 429):
+                r.raise_for_status()
+                data = r.json()
+                if data.get("success") is False:
+                    errors = data.get("errors") or []
+                    mensagem = "; ".join(
+                        str(item.get("message", item)) for item in errors
+                    ) or "Cloudflare retornou success=false."
+                    raise RuntimeError(mensagem)
+
+                resultado = data.get("result") or {}
+                imagem_b64 = resultado.get("image")
+                if not imagem_b64:
+                    raise RuntimeError(f"O modelo {modelo} não retornou o campo de imagem.")
+
+                img = Image.open(io.BytesIO(base64.b64decode(imagem_b64))).convert("RGBA")
+                if img.width < 100 or img.height < 100:
+                    raise RuntimeError(f"O modelo {modelo} retornou uma imagem inválida.")
+                print(f"Imagem gerada com sucesso usando {modelo}.")
+                return img
+
+            except Exception as erro:
+                ultimo_erro = erro
+                status = getattr(getattr(erro, "response", None), "status_code", None)
+                print(f"Falha no modelo {modelo}: {erro}")
+
+                # Erros de credencial ou modelo inexistente não melhoram com novas tentativas.
+                if status in (400, 401, 403, 404):
+                    break
+                if tentativa == 1 and status != 429:
+                    time.sleep(10)
+                    continue
+                # Após duas tentativas, avança para o modelo alternativo.
                 break
 
     raise RuntimeError(
-        f"Falha ao gerar imagem com Cloudflare Workers AI: {ultimo_erro}"
+        "Não foi possível gerar a imagem com os modelos alternativos da Cloudflare. "
+        "O limite/cota da conta pode ter sido atingido. Último erro: "
+        f"{ultimo_erro}"
     )
 
 def salvar_arte(img):
