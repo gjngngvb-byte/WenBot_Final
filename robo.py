@@ -164,10 +164,11 @@ def baixar_imagem(prompt):
                     )
                 else:
                     # FLUX.1 Schnell usa JSON e aceita prompt/seed; dimensões são definidas pelo modelo.
+                    # A chamada REST documentada para FLUX.1 Schnell usa campos de formulário.
                     r = requests.post(
                         url,
-                        headers={**headers, "Content-Type": "application/json"},
-                        json={"prompt": prompt_api, "seed": seed},
+                        headers=headers,
+                        data={"prompt": prompt_api, "seed": str(seed)},
                         timeout=180,
                     )
 
@@ -178,7 +179,12 @@ def baixar_imagem(prompt):
                     time.sleep(espera)
                     continue
 
-                r.raise_for_status()
+                if not r.ok:
+                    detalhe = (r.text or "").strip().replace("\\n", " ")[:1200]
+                    raise requests.HTTPError(
+                        f"{r.status_code} {r.reason}; resposta da API: {detalhe}",
+                        response=r,
+                    )
                 data = r.json()
                 if data.get("success") is False:
                     errors = data.get("errors") or []
