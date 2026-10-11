@@ -3,3 +3,4 @@ Pillow
 google-genai
 instagrapi
 Flask
+flask-cors
