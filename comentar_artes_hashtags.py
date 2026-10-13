@@ -86,10 +86,11 @@ def load_history():
         if isinstance(data, dict):
             data.setdefault("commented_media_ids", [])
             data.setdefault("used_comments", [])
+            data.setdefault("comment_log", [])
             return data
     except (OSError, json.JSONDecodeError):
         pass
-    return {"commented_media_ids": [], "used_comments": []}
+    return {"commented_media_ids": [], "used_comments": [], "comment_log": []}
 
 
 def normalize(text):
@@ -201,6 +202,15 @@ def main():
             commented_ids.add(media_id)
             used_comments.append(comment)
             used_normalized.add(normalize(comment))
+            media_user = field(media, "user", {}) or {}
+            history.setdefault("comment_log", []).append({
+                "media_id": media_id,
+                "username": str(field(media_user, "username", "") or ""),
+                "caption": str(field(media, "caption_text", "") or "")[:300],
+                "comment": comment,
+                "commented_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+            history["comment_log"] = history["comment_log"][-300:]
             history["commented_media_ids"] = sorted(commented_ids)
             history["used_comments"] = used_comments
             HISTORY_PATH.write_text(
