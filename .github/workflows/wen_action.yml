@@ -5,6 +5,34 @@ on:
   schedule:
     - cron: "0 0,5,10,15,20 * * *"
   workflow_dispatch:
+    inputs:
+      width:
+        description: "Largura da imagem (256 a 2048)"
+        required: false
+        default: "1024"
+        type: string
+      height:
+        description: "Altura da imagem (256 a 2048)"
+        required: false
+        default: "1024"
+        type: string
+      seed:
+        description: "Semente opcional para repetir a configuração"
+        required: false
+        type: string
+      model:
+        description: "Modelo de imagem"
+        required: false
+        default: "@cf/black-forest-labs/flux-2-klein-9b"
+        type: choice
+        options:
+          - "@cf/black-forest-labs/flux-2-klein-9b"
+          - "@cf/black-forest-labs/flux-1-schnell"
+      attempts:
+        description: "Tentativas por modelo (1 a 10)"
+        required: false
+        default: "3"
+        type: string
 
 permissions:
   contents: write
@@ -35,6 +63,11 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WENBOT_WIDTH: ${{ inputs.width || '1024' }}
+          WENBOT_HEIGHT: ${{ inputs.height || '1024' }}
+          WENBOT_SEED: ${{ inputs.seed }}
+          WENBOT_IMAGE_MODEL: ${{ inputs.model || '@cf/black-forest-labs/flux-2-klein-9b' }}
+          WENBOT_ATTEMPTS: ${{ inputs.attempts || '3' }}
         run: python robo.py
 
       - name: Salvar arte no Git
