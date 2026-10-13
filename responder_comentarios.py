@@ -165,6 +165,7 @@ def main():
                     "comment_id": comment_pk,
                     "media_id": media_pk,
                     "username": username,
+                    "comment": text[:300],
                     "reply": answer,
                     "replied_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 })
