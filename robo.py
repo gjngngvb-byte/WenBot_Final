@@ -1,8 +1,12 @@
 import base64
+import difflib
 import io
+import json
 import os
 import random
+import re
 import time
+import unicodedata
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -23,6 +27,7 @@ CLOUDFLARE_IMAGE_WIDTH = int(os.environ.get("WENBOT_WIDTH", "1024"))
 CLOUDFLARE_IMAGE_HEIGHT = int(os.environ.get("WENBOT_HEIGHT", "1024"))
 WENBOT_ATTEMPTS = max(1, min(10, int(os.environ.get("WENBOT_ATTEMPTS", "3"))))
 WENBOT_SEED = os.environ.get("WENBOT_SEED", "").strip()
+CAPTION_HISTORY_FILE = "wen_caption_history.json"
 RNG = random.Random(int(WENBOT_SEED)) if WENBOT_SEED else random.Random()
 
 if not GOOGLE_API_KEY:
@@ -283,35 +288,164 @@ def salvar_arte(img):
     fundo = Image.alpha_composite(fundo, camada)
     fundo.convert("RGB").save("wen_art.jpg", "JPEG", quality=95, optimize=True)
 
-def analisar_imagem_e_criar_legenda():
-    print("Analisando a imagem REAL com Gemini...")
+def carregar_historico_legendas():
+    """Carrega o histórico persistente para impedir legendas repetidas."""
+    try:
+        with open(CAPTION_HISTORY_FILE, "r", encoding="utf-8") as arquivo:
+            historico = json.load(arquivo)
+        if isinstance(historico, list):
+            return [item for item in historico if isinstance(item, str) and item.strip()]
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    # Migração inicial: inclui a última legenda já salva no repositório.
+    try:
+        with open("wen_art.txt", "r", encoding="utf-8") as arquivo:
+            anterior = arquivo.read().strip()
+        return [anterior] if anterior else []
+    except OSError:
+        return []
+
+
+def normalizar_legenda(texto):
+    """Normaliza texto para comparar legendas sem depender de maiúsculas ou acentos."""
+    texto = unicodedata.normalize("NFKD", texto.casefold())
+    texto = "".join(char for char in texto if not unicodedata.combining(char))
+    texto = re.sub(r"#\w+", " ", texto)
+    return " ".join(re.findall(r"[a-z0-9]+", texto))
+
+
+def legenda_repetida(legenda, historico):
+    nova = normalizar_legenda(legenda)
+    if not nova:
+        return True
+    for antiga in historico:
+        anterior = normalizar_legenda(antiga)
+        if not anterior:
+            continue
+        if nova == anterior:
+            return True
+        # Bloqueia também textos quase iguais, não só cópias literais.
+        if difflib.SequenceMatcher(None, nova, anterior).ratio() >= 0.82:
+            return True
+    return False
+
+
+def validar_legenda(legenda, historico):
+    legenda = (legenda or "").strip().strip('"').strip("'")
+    if not legenda or "#wen" not in legenda.lower() or "#art" not in legenda.lower():
+        return None
+    if "Às vezes, basta mudar o ponto de vista para o impossível ganhar forma." in legenda:
+        return None
+    hashtags = re.findall(r"(?<!\w)#[\wÀ-ÿ]+", legenda)
+    if len(hashtags) != 5:
+        return None
+    if legenda_repetida(legenda, historico):
+        print("Legenda repetida ou muito parecida com uma anterior; será gerada outra.")
+        return None
+    return legenda
+
+
+def gerar_legenda_reserva_cloudflare(ideia, historico):
+    """Gera uma legenda personalizada por outra IA quando o Gemini falha."""
+    if not CLOUDFLARE_ACCOUNT_ID or not CLOUDFLARE_API_TOKEN:
+        raise RuntimeError("Cloudflare sem credenciais para gerar a legenda reserva.")
+
+    historico_recente = "\n".join(f"- {item[:350]}" for item in historico[-30:])
+    prompt = f"""
+Crie uma legenda ORIGINAL para Instagram, em português brasileiro, para uma ilustração.
+Use os detalhes concretos desta descrição visual como inspiração: {ideia[:1200]}
+A legenda deve parecer humana, criativa e específica para essa cena, sem frases prontas.
+Não use a frase "Às vezes, basta mudar o ponto de vista para o impossível ganhar forma."
+Não invente detalhes que não estejam sugeridos pela descrição.
+Escreva de 1 a 3 frases curtas e finalize com exatamente cinco hashtags relevantes,
+incluindo obrigatoriamente #wen e #art. Devolva somente a legenda final.
+Nunca copie nem reformule de perto estas legendas anteriores:
+{historico_recente or "- Nenhuma legenda anterior registrada."}
+""".strip()
+    url = (
+        "https://api.cloudflare.com/client/v4/accounts/"
+        f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct"
+    )
+    resposta = requests.post(
+        url,
+        headers={
+            "Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        json={"messages": [
+            {"role": "system", "content": "Você é redator criativo de legendas. Seja específico e evite clichês."},
+            {"role": "user", "content": prompt},
+        ]},
+        timeout=90,
+    )
+    resposta.raise_for_status()
+    dados = resposta.json()
+    resultado = dados.get("result") or {}
+    texto = resultado.get("response", "")
+    if not texto:
+        raise RuntimeError("A IA reserva da Cloudflare não retornou uma legenda.")
+    return texto.strip()
+
+
+def analisar_imagem_e_criar_legenda(ideia):
+    print("Analisando a imagem REAL com Gemini para criar uma legenda exclusiva...")
     imagem = Image.open("wen_art.jpg").convert("RGB")
-    prompt = """
-Analyze THIS ACTUAL IMAGE, not just the original concept.
-Write a ready-to-post Instagram caption in Brazilian Portuguese.
-Describe only what is visible. Consider subject, action, unusual perspective,
-composition, atmosphere and surreal details. Be human, intriguing and slightly
-poetic. Maximum 4 short lines before hashtags. Never invent details. Never mention
-AI, Gemini, Pollinations, prompts, automation or image generation.
-Finish with exactly 5 relevant hashtags, always including #wen and #art.
-Put hashtags on the last line. Return ONLY the final caption.
+    historico = carregar_historico_legendas()
+    historico_prompt = "\n".join(f"- {item[:350]}" for item in historico[-30:])
+    prompt = f"""
+Analise ESTA IMAGEM REAL, não apenas a descrição do conceito.
+Crie uma legenda original e personalizada para esta imagem específica, em português brasileiro.
+Descreva detalhes visíveis: formas, sujeito, ação, perspectiva incomum e composição.
+A descrição inicial do conceito é apenas contexto, confirme os detalhes pela imagem:
+{ideia[:900]}
+Escreva de 1 a 3 frases curtas, naturais e intrigantes. Seja concreto e humano, sem clichês,
+sem frases motivacionais genéricas e sem repetir uma estrutura usada em outra publicação.
+NÃO use a frase "Às vezes, basta mudar o ponto de vista para o impossível ganhar forma."
+Não invente detalhes. Não mencione IA, Gemini, automação ou geração de imagens.
+Finalize com exatamente 5 hashtags relevantes, incluindo #wen e #art.
+Retorne somente a legenda pronta para publicar, com hashtags na última linha.
+Estas legendas já foram usadas e não podem ser copiadas nem parafraseadas de perto:
+{historico_prompt or "- Nenhuma legenda anterior registrada."}
 """.strip()
 
-    try:
-        r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=[prompt, imagem])
-        legenda = (r.text or "").strip()
-        if legenda and "#wen" in legenda.lower() and "#art" in legenda.lower():
-            return legenda
-        print("Gemini retornou uma legenda vazia ou sem as hashtags obrigatórias.")
-    except Exception as e:
-        print(f"Gemini não conseguiu criar a legenda: {type(e).__name__}: {e}")
+    # Tenta primeiro a IA que realmente enxerga a imagem.
+    for tentativa in range(1, 4):
+        try:
+            r = gerar_conteudo_com_retentativas(model=GEMINI_MODEL, contents=[prompt, imagem])
+            legenda = validar_legenda(r.text, historico)
+            if legenda:
+                historico.append(legenda)
+                with open(CAPTION_HISTORY_FILE, "w", encoding="utf-8") as arquivo:
+                    json.dump(historico, arquivo, ensure_ascii=False, indent=2)
+                return legenda
+            print(f"Legenda Gemini inválida/repetida (tentativa {tentativa}/3).")
+            prompt += "\n\nIMPORTANTE: gere uma abordagem completamente diferente das legendas anteriores."
+        except Exception as erro:
+            print(f"Gemini falhou ao criar legenda ({type(erro).__name__}): {erro}")
+            break
 
-    # A falta de cota para legendas não deve impedir a publicação da arte.
-    # Esta legenda neutra evita afirmar detalhes visuais que não foram verificados.
-    print("Usando legenda de reserva em português para não interromper o fluxo.")
-    return (
-        "Às vezes, basta mudar o ponto de vista para o impossível ganhar forma.\n\n"
-        "#wen #art #arte #desenho #surrealismo"
+    # Segunda IA: usa o conceito individual desta arte, sem recorrer a uma frase fixa.
+    for tentativa in range(1, 4):
+        try:
+            texto = gerar_legenda_reserva_cloudflare(ideia, historico)
+            legenda = validar_legenda(texto, historico)
+            if legenda:
+                historico.append(legenda)
+                with open(CAPTION_HISTORY_FILE, "w", encoding="utf-8") as arquivo:
+                    json.dump(historico, arquivo, ensure_ascii=False, indent=2)
+                print("Legenda personalizada criada pela IA reserva da Cloudflare.")
+                return legenda
+            print(f"Legenda reserva inválida/repetida (tentativa {tentativa}/3).")
+            historico_prompt += f"\n- {texto[:350]}"
+        except Exception as erro:
+            print(f"IA reserva da Cloudflare falhou ({type(erro).__name__}): {erro}")
+            break
+
+    # Não publicar uma legenda genérica/repetida se as IAs não conseguirem criar uma única.
+    raise RuntimeError(
+        "Não foi possível criar uma legenda personalizada e inédita. "
+        "Publicação cancelada para evitar legenda repetida."
     )
 
 def criar_arte():
@@ -341,7 +475,7 @@ Do not generate any text, including "Wen". The bot adds the only signature, the 
 """.strip()
     img = baixar_imagem(prompt)
     salvar_arte(img)
-    legenda = analisar_imagem_e_criar_legenda()
+    legenda = analisar_imagem_e_criar_legenda(ideia)
     open("wen_art.txt", "w", encoding="utf-8").write(legenda)
     open("wen_art_idea.txt", "w", encoding="utf-8").write(ideia)
     print(legenda)
