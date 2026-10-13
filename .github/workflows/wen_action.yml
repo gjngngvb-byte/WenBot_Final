@@ -135,6 +135,10 @@ jobs:
           python responder_comentarios.py
           git config user.name "Wen Bot"
           git config user.email "bot@wen.com"
-          git add wen_comment_replies.json
-          git commit -m "Registrar respostas aos comentários" || exit 0
-          git push
+          if [ -f wen_comment_replies.json ]; then
+            git add wen_comment_replies.json
+            git commit -m "Registrar respostas aos comentários" || true
+            git push
+          else
+            echo "Nenhum histórico de comentários foi criado nesta execução."
+          fi
