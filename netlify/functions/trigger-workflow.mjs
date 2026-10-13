@@ -59,6 +59,33 @@ export default async (request) => {
     return responseJson({ error: "Senha de acionamento incorreta." }, 401, allowedOrigin);
   }
 
+  const params = body.params && typeof body.params === "object" ? body.params : {};
+  const width = Number(params.width ?? 1024);
+  const height = Number(params.height ?? 1024);
+  const attempts = Number(params.attempts ?? 3);
+  const seed = params.seed === null || params.seed === undefined || params.seed === ""
+    ? ""
+    : String(params.seed);
+  const model = params.model ?? "@cf/black-forest-labs/flux-2-klein-9b";
+  const allowedModels = new Set([
+    "@cf/black-forest-labs/flux-2-klein-9b",
+    "@cf/black-forest-labs/flux-1-schnell"
+  ]);
+
+  if (!Number.isInteger(width) || width < 256 || width > 2048 ||
+      !Number.isInteger(height) || height < 256 || height > 2048) {
+    return responseJson({ error: "Largura e altura devem ficar entre 256 e 2048 pixels." }, 400, allowedOrigin);
+  }
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 10) {
+    return responseJson({ error: "As tentativas devem ficar entre 1 e 10." }, 400, allowedOrigin);
+  }
+  if (seed !== "" && (!/^\\d+$/.test(seed) || Number(seed) > 999999999)) {
+    return responseJson({ error: "A semente deve ser um inteiro entre 0 e 999999999." }, 400, allowedOrigin);
+  }
+  if (!allowedModels.has(model)) {
+    return responseJson({ error: "Modelo de imagem inválido." }, 400, allowedOrigin);
+  }
+
   try {
     const githubResponse = await fetch(
       "https://api.github.com/repos/gjngngvb-byte/WenBot_Final/actions/workflows/wen_action.yml/dispatches",
@@ -71,7 +98,16 @@ export default async (request) => {
           "content-type": "application/json",
           "user-agent": "WenBot-Netlify-Trigger"
         },
-        body: JSON.stringify({ ref: "main" })
+        body: JSON.stringify({
+          ref: "main",
+          inputs: {
+            width: String(width),
+            height: String(height),
+            seed,
+            model,
+            attempts: String(attempts)
+          }
+        })
       }
     );
 
