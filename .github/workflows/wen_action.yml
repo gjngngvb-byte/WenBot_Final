@@ -74,7 +74,7 @@ jobs:
         run: |
           git config user.name "Wen Bot"
           git config user.email "bot@wen.com"
-          git add wen_art.jpg wen_art.txt wen_art_idea.txt
+          git add wen_art.jpg wen_art.txt wen_art_idea.txt wen_caption_history.json
           git commit -m "Nova arte gerada" || exit 0
           git push
 
