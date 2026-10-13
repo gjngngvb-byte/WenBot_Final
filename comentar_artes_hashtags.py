@@ -158,6 +158,7 @@ def main():
     client = Client()
     client.set_settings(settings)
     client.get_timeline_feed()
+    own_user_id = str(client.user_id)
 
     history = load_history()
     commented_ids = {str(item) for item in history["commented_media_ids"]}
@@ -170,9 +171,11 @@ def main():
             medias = client.hashtag_medias_recent(hashtag, amount=MEDIA_PER_HASHTAG)
             for media in medias:
                 media_id = str(field(media, "pk", "") or "")
-                if not media_id or media_id in commented_ids:
+                media_user = field(media, "user", {}) or {}
+                media_user_id = str(field(media, "user_id", "") or field(media_user, "pk", ""))
+                if not media_id or media_id in commented_ids or media_user_id == own_user_id:
                     continue
-                # Apenas publicações de imagem/vídeo com legenda acessível.
+                # Apenas publicações de outras contas encontradas pelas hashtags.
                 found.setdefault(media_id, media)
         except Exception as exc:
             print(f"Hashtag #{hashtag} indisponível: {type(exc).__name__}: {exc}")
