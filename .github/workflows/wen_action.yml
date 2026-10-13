@@ -124,6 +124,21 @@ jobs:
               sys.exit(1)
           PY
 
+      - name: Comentar em artes encontradas por hashtags
+        env:
+          INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
+        run: |
+          python comentar_artes_hashtags.py
+          git config user.name "Wen Bot"
+          git config user.email "bot@wen.com"
+          if [ -f wen_art_hashtag_comments.json ]; then
+            git add wen_art_hashtag_comments.json
+            git commit -m "Registrar comentários em artes por hashtag" || true
+            git push
+          else
+            echo "Nenhum histórico de comentários por hashtag foi criado nesta execução."
+          fi
+
       - name: Responder comentários de publicações anteriores
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
