@@ -262,6 +262,22 @@ def salvar_arte(img):
     texto_altura = caixa[3] - caixa[1]
     x = largura * escala - texto_largura - margem * escala - caixa[0]
     y = altura * escala - texto_altura - margem * escala - caixa[1]
+
+    # O modelo pode ignorar a instrução e desenhar "Wen" na própria arte.
+    # Limpa uma pequena área no canto antes de inserir a assinatura oficial,
+    # evitando que a assinatura gerada pela IA fique sobreposta à assinatura real.
+    zona_largura = max(round(largura * 0.22), round(texto_largura / escala) + 24)
+    zona_altura = max(round(altura * 0.12), round(texto_altura / escala) + 24)
+    margem_limpeza = max(8, round(margem * 0.35))
+    esquerda = max(0, largura - margem - zona_largura)
+    topo = max(0, altura - margem - zona_altura)
+    direita = min(largura, largura - max(2, margem // 2))
+    base = min(altura, altura - max(2, margem // 2))
+    ImageDraw.Draw(fundo).rectangle(
+        (esquerda, topo, direita, base),
+        fill=(255, 255, 255, 255)
+    )
+
     desenho.text((x, y), texto, fill=(0, 0, 0, 255), font=fonte)
 
     camada = camada.resize((largura, altura), Image.Resampling.LANCZOS)
