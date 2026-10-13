@@ -18,9 +18,12 @@ GEMINI_MODEL = "gemini-3.8-flash"
 # Cloudflare Workers AI: use apenas o plano Free para evitar cobranças.
 CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
 CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN")
-CLOUDFLARE_IMAGE_MODEL = "@cf/black-forest-labs/flux-2-klein-9b"
-CLOUDFLARE_IMAGE_WIDTH = 1024
-CLOUDFLARE_IMAGE_HEIGHT = 1024
+CLOUDFLARE_IMAGE_MODEL = os.environ.get("WENBOT_IMAGE_MODEL", "@cf/black-forest-labs/flux-2-klein-9b")
+CLOUDFLARE_IMAGE_WIDTH = int(os.environ.get("WENBOT_WIDTH", "1024"))
+CLOUDFLARE_IMAGE_HEIGHT = int(os.environ.get("WENBOT_HEIGHT", "1024"))
+WENBOT_ATTEMPTS = max(1, min(10, int(os.environ.get("WENBOT_ATTEMPTS", "3"))))
+WENBOT_SEED = os.environ.get("WENBOT_SEED", "").strip()
+RNG = random.Random(int(WENBOT_SEED)) if WENBOT_SEED else random.Random()
 
 if not GOOGLE_API_KEY:
     raise RuntimeError("GOOGLE_API_KEY não configurada.")
@@ -86,8 +89,8 @@ ANGULOS = [
 def gerar_ideia():
     prompt = f"""
 Create ONE original concept for a clean, digital-looking 2D illustration inspired by the user's established spider-reference art style. Do not recreate the spider or any reference image.
-Base concept: {random.choice(ASSUNTOS)}
-Camera/composition: {random.choice(ANGULOS)}
+Base concept: {RNG.choice(ASSUNTOS)}
+Camera/composition: {RNG.choice(ANGULOS)}
 STYLE: crisp, deliberate black vector-like outlines on a pure white background, using simple geometric shapes and clean curves. The design should feel graphic, minimal, clever, and imaginative, with a strong readable silhouette and an unusual viewpoint. Keep the subject flat and clearly illustrated, not rendered in 3D.
 ABSOLUTELY NO color, gray, shading, shadows, gradients, texture, hatching, sketchy strokes, paint effects, lettering, text, logos, watermarks, or signatures. The bot will add the only signature, "Wen", separately after generation.
 Return ONLY the visual description in English, maximum 180 words.
@@ -133,9 +136,15 @@ def baixar_imagem(prompt):
     prompt_api = prompt_api[:2048]
 
     headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
+    modelo_selecionado = CLOUDFLARE_IMAGE_MODEL
+    modelo_reserva = (
+        "@cf/black-forest-labs/flux-1-schnell"
+        if modelo_selecionado != "@cf/black-forest-labs/flux-1-schnell"
+        else "@cf/black-forest-labs/flux-2-klein-9b"
+    )
     modelos = [
-        (CLOUDFLARE_IMAGE_MODEL, "klein"),
-        ("@cf/black-forest-labs/flux-1-schnell", "schnell"),
+        (modelo_selecionado, "klein" if "klein" in modelo_selecionado else "schnell"),
+        (modelo_reserva, "klein" if "klein" in modelo_reserva else "schnell"),
     ]
     ultimo_erro = None
 
@@ -144,13 +153,13 @@ def baixar_imagem(prompt):
             "https://api.cloudflare.com/client/v4/accounts/"
             f"{CLOUDFLARE_ACCOUNT_ID}/ai/run/{modelo}"
         )
-        for tentativa in range(1, 3):
+        for tentativa in range(1, WENBOT_ATTEMPTS + 1):
             try:
                 print(
                     f"Gerando imagem com Cloudflare Workers AI ({modelo}, "
-                    f"tentativa {tentativa}/2)..."
+                    f"tentativa {tentativa}/{WENBOT_ATTEMPTS})..."
                 )
-                seed = random.randint(1, 999999999)
+                seed = int(WENBOT_SEED) if WENBOT_SEED else RNG.randint(1, 999999999)
                 if formato == "klein":
                     payload = {
                         "prompt": prompt_api,
@@ -168,11 +177,16 @@ def baixar_imagem(prompt):
                     r = requests.post(
                         url,
                         headers={**headers, "Content-Type": "application/json"},
-                        json={"prompt": prompt_api, "seed": seed},
+                        json={
+                            "prompt": prompt_api,
+                            "seed": seed,
+                            "width": CLOUDFLARE_IMAGE_WIDTH,
+                            "height": CLOUDFLARE_IMAGE_HEIGHT,
+                        },
                         timeout=180,
                     )
 
-                if r.status_code == 429 and tentativa == 1:
+                if r.status_code == 429 and tentativa < WENBOT_ATTEMPTS:
                     espera = int(r.headers.get("Retry-After", "30"))
                     espera = max(5, min(espera, 90))
                     print(f"Limite temporário da Cloudflare (429). Aguardando {espera}s...")
