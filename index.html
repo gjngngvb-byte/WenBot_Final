@@ -702,9 +702,10 @@
             refreshActivityBtn.disabled = true;
             refreshActivityBtn.textContent = 'Atualizando histórico...';
             try {
+                const historyBase = 'https://raw.githubusercontent.com/gjngngvb-byte/WenBot_Final/main/';
                 const [hashtagResponse, replyResponse] = await Promise.all([
-                    fetch('wen_art_hashtag_comments.json?t=' + Date.now(), { cache: 'no-store' }),
-                    fetch('wen_comment_replies.json?t=' + Date.now(), { cache: 'no-store' })
+                    fetch(historyBase + 'wen_art_hashtag_comments.json?t=' + Date.now(), { cache: 'no-store' }),
+                    fetch(historyBase + 'wen_comment_replies.json?t=' + Date.now(), { cache: 'no-store' })
                 ]);
                 const hashtagData = hashtagResponse.ok ? await hashtagResponse.json() : {};
                 const replyData = replyResponse.ok ? await replyResponse.json() : {};
@@ -793,6 +794,12 @@
         }
 
         function checkBackendHealth() {
+            if (!configuredApiUrl) {
+                backendStatusEl.textContent = "ℹ️ Painel estático: ações pelo GitHub Actions";
+                backendStatusEl.style.color = "#00d4ff";
+                systemInfoEl.textContent = "Conectado ao GitHub Pages. As tarefas são executadas pelo GitHub Actions.";
+                return;
+            }
             fetch(`${BASE_URL}/api/health`)
                 .then(response => response.json())
                 .then(data => {
