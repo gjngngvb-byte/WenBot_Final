@@ -157,7 +157,7 @@ def baixar_imagem(prompt):
             try:
                 print(
                     f"Gerando imagem com Cloudflare Workers AI ({modelo}, "
-                    f"tentativa {tentativa}/2)..."
+                    f"tentativa {tentativa}/{WENBOT_ATTEMPTS})..."
                 )
                 seed = RNG.randint(1, 999999999)
                 if formato == "klein":
@@ -186,7 +186,7 @@ def baixar_imagem(prompt):
                         timeout=180,
                     )
 
-                if r.status_code == 429 and tentativa == 1:
+                if r.status_code == 429 and tentativa < WENBOT_ATTEMPTS:
                     espera = int(r.headers.get("Retry-After", "30"))
                     espera = max(5, min(espera, 90))
                     print(f"Limite temporário da Cloudflare (429). Aguardando {espera}s...")
