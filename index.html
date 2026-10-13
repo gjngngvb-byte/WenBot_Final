@@ -498,11 +498,10 @@
                 </div>
 
                 <div class="param-group">
-                    <label for="model">Modelo de IA</label>
+                    <label for="model">Modelo de imagem</label>
                     <select id="model">
-                        <option value="gemini-3.8-flash">Gemini 3.8 Flash (padrão)</option>
-                        <option value="gemini-3.5-pro">Gemini 3.5 Pro</option>
-                        <option value="cloudflare-flux">Cloudflare FLUX.2 Klein</option>
+                        <option value="@cf/black-forest-labs/flux-2-klein-9b">Cloudflare FLUX.2 Klein (padrão)</option>
+                        <option value="@cf/black-forest-labs/flux-1-schnell">Cloudflare FLUX.1 Schnell (reserva)</option>
                     </select>
                 </div>
 
@@ -691,8 +690,7 @@
                 .catch(() => {
                     backendStatusEl.textContent = "❌ Backend não disponível";
                     backendStatusEl.style.color = "#ff6b6b";
-                    // Show warning that we're in simulation mode
-                    showToast('warning', 'Modo Simulação', 'Backend não detectado. Executando em modo simulação.', 5000);
+                    // A interface não simula a geração: o acionamento remoto usa o GitHub Actions.
                 });
         }
 
@@ -788,6 +786,16 @@
                 return;
             }
 
+            if (!Number.isInteger(params.attempts) || params.attempts < 1 || params.attempts > 10) {
+                showToast('error', 'Erro de Validação', 'As tentativas devem ficar entre 1 e 10');
+                return;
+            }
+
+            if (params.seed !== null && (!Number.isInteger(params.seed) || params.seed < 0 || params.seed > 999999999)) {
+                showToast('error', 'Erro de Validação', 'A semente deve ficar entre 0 e 999999999');
+                return;
+            }
+
             isGenerating = true;
             generateBtn.disabled = true;
             generateBtn.textContent = "Gerando...";
@@ -844,7 +852,7 @@
                         const triggerResponse = await fetch('https://wenbot-trigger.netlify.app/.netlify/functions/trigger-workflow', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ password })
+                            body: JSON.stringify({ password, params })
                         });
                         const triggerResult = await triggerResponse.json().catch(() => ({}));
                         if (!triggerResponse.ok) {
@@ -853,7 +861,15 @@
 
                         const workflowUrl = triggerResult.workflow_url || 'https://github.com/gjngngvb-byte/WenBot_Final/actions/workflows/wen_action.yml';
                         statusDisplay.className = "status running";
-                        statusDisplay.innerHTML = 'Pedido enviado! O GitHub Actions está iniciando a geração. Isso pode levar alguns minutos. <a href="' + workflowUrl + '" target="_blank" rel="noopener noreferrer" style="color:#00d4ff;text-decoration:underline">Acompanhar execução</a>. Depois que terminar, atualize a página para carregar a nova arte.';
+                        statusDisplay.textContent = 'Pedido enviado! O GitHub Actions está iniciando a geração com os parâmetros escolhidos. Isso pode levar alguns minutos. Abra o link de acompanhamento abaixo e atualize a página quando terminar.';
+                        const workflowLink = document.createElement('a');
+                        workflowLink.href = workflowUrl;
+                        workflowLink.target = '_blank';
+                        workflowLink.rel = 'noopener noreferrer';
+                        workflowLink.textContent = 'Acompanhar execução no GitHub Actions';
+                        workflowLink.style.cssText = 'display:inline-block;margin-top:8px;color:#00d4ff;text-decoration:underline';
+                        statusDisplay.appendChild(document.createElement('br'));
+                        statusDisplay.appendChild(workflowLink);
                         addLog("success", "Pedido enviado ao GitHub Actions.");
                         showToast('success', 'Geração iniciada', 'O GitHub Actions vai gerar a arte. Atualize o site após a execução terminar.', 7000);
                     } catch (triggerError) {
@@ -948,87 +964,16 @@
         function addLogFromObject(logObj) {
             const logEntry = document.createElement('div');
             logEntry.className = `log-entry ${logObj.level || 'info'}`;
-            const timestamp = new Date(logObj.timestamp).toLocaleTimeString('pt-BR');
-            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${logObj.message}`;
+            const timestamp = document.createElement('span');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = `[${new Date(logObj.timestamp).toLocaleTimeString('pt-BR')}] `;
+            logEntry.appendChild(timestamp);
+            logEntry.appendChild(document.createTextNode(String(logObj.message || '')));
             logsDisplay.appendChild(logEntry);
         }
 
-        async function simulateBotProcess(params) {
-            // Simula os passos do robo.py com os parâmetros fornecidos
-            addLog("info", `Etapa 1: Gerando conceito criativo (largura: ${params.width}px, altura: ${params.height}px)...`);
-            await sleep(1500);
-
-            addLog("info", "Etapa 2: Criando prompt para geração de imagem...");
-            await sleep(1000);
-
-            addLog("info", `Etapa 3: Usando modelo ${params.model} com ${params.attempts} tentativas máximas...`);
-            await sleep(2000);
-
-            addLog("info", "Etapa 4: Baixando e processando imagem gerada...");
-            await sleep(1500);
-
-            addLog("info", "Etapa 5: Aplicando assinatura 'Wen'...");
-            await sleep(1000);
-
-            addLog("info", "Etapa 6: Analisando imagem para criar legenda...");
-            await sleep(2000);
-
-            addLog("info", "Etapa 7: Salvando arquivos...");
-            await sleep(1000);
-
-            // Update demo files with parameters
-            await updateDemoFiles(params);
-        }
-
-        async function updateDemoFiles(params) {
-            // Cria conteúdo de demonstração para os arquivos baseado nos parâmetros
-            const concepts = [
-                "an impossible animal combining two unrelated creatures",
-                "a strange machine with an impossible purpose",
-                "a surreal building that could not exist in the real world",
-                "a mysterious character made from an unexpected material",
-                "a hybrid between nature and advanced technology"
-            ];
-
-            // Use seed if provided for deterministic selection
-            const seedValue = params.seed || Date.now();
-            const seededRandom = seedRandom(seedValue);
-            const randomConcept = concepts[seededRandom() * concepts.length | 0];
-
-            const randomLegend = [
-                `Arte gerada em ${params.width}×${params.height}px com semente ${params.seed || 'aleatória'}.\n\n#wen #art #arte #desenho #surrealismo`,
-                `Explorando conceitos impossíveis em ${params.width}×${params.height}. Modelo: ${params.model}.\n\n#wen #art #criatividade #design #inovação`,
-                `Nas bordas do possível, encontramos a essência da verdadeira criatividade em ${params.width}×${params.height}px.\n\n#wen #art #arteconceitual #digital #futurismo`,
-                `O olho que vê além do evidente descobre universos inteiros em ${params.width}×${params.height}px de linhas simples.\n\n#wen #art #ilustração #conceito #visionário`,
-                `Não são os limites que nos definem, mas nossa capacidade de ir além deles em ${params.width}×${params.height}px.\n\n#wen #art #expressão #artecontemporânea #experimental`
-            ][seededRandom() * 5 | 0];
-
-            // In a real environment, these would be written by robo.py
-            // For simulation, we'll just update the display
-            addLog("info", "Arquivos simulados atualizados (em ambiente real, o robo.py faria isso)");
-
-            // Update the display immediately for demo purposes
-            artLegend.textContent = randomLegend;
-            artIdea.textContent = randomConcept;
-
-            // Update image timestamp to trigger reload
-            const timestamp = new Date().getTime();
-            artImage.src = `wen_art.jpg?${timestamp}`;
-        }
-
-        function seedRandom(seed) {
-            // Simple seeded random function for demo purposes
-            let x = seed;
-            return () => {
-                x = (x * 9301 + 49297) % 233280;
-                return x / 233280;
-            };
-        }
-
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
+        // Não existe modo de geração simulada. Sem backend, o botão só aciona o workflow real.
+        
         function resetView() {
             loadCurrentData();
             addLog("info", "Visualização resetada para o estado atual.");
@@ -1053,7 +998,11 @@
             const timestamp = new Date().toLocaleTimeString('pt-BR');
             const logEntry = document.createElement('div');
             logEntry.className = `log-entry ${type}`;
-            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            const timestampEl = document.createElement('span');
+            timestampEl.className = 'timestamp';
+            timestampEl.textContent = `[${timestamp}] `;
+            logEntry.appendChild(timestampEl);
+            logEntry.appendChild(document.createTextNode(String(message || '')));
             logsDisplay.appendChild(logEntry);
             logsDisplay.scrollTop = logsDisplay.scrollHeight;
         }
