@@ -62,6 +62,22 @@ EN_COMMENTS = [
     "the talent is unreal", "this looks fantastic", "I really like this one",
 ]
 
+ES_COMMENTS = [
+    "¡qué bonito quedó!", "me encanta este estilo ✨", "te quedó increíble",
+    "qué trabajazo, de verdad", "está precioso", "muchísimo talento aquí",
+    "me gusta muchísimo esta pieza", "qué buena vibra tiene", "te luciste con este",
+    "está genial 🎉", "qué arte tan bonito", "me encanta cómo quedó",
+    "esto merece más amor", "qué nivel de detalle", "una belleza de dibujo",
+]
+
+FR_COMMENTS = [
+    "c'est vraiment magnifique !", "j'adore ce style ✨", "super beau travail",
+    "beaucoup de talent ici", "le résultat est incroyable", "c'est trop joli",
+    "j'aime beaucoup cette création", "quelle belle illustration", "très réussi !",
+    "c'est superbe 🎉", "les détails sont magnifiques", "j'adore le rendu",
+    "ça mérite plus d'amour", "un travail vraiment impressionnant", "trop stylé !",
+]
+
 PT_MARKERS = {
     "desenho", "desenhos", "arte", "artes", "ilustração", "ilustracao",
     "feito", "feita", "meu", "minha", "estudo", "rabisco", "pintura",
@@ -70,7 +86,17 @@ PT_MARKERS = {
 }
 EN_MARKERS = {
     "drawing", "artwork", "sketch", "illustration", "myart", "artist",
-    "digitalart", "painting", "made", "character", "fanart", "wip",
+    "digitalart", "painting", "made", "character", "fanart", "wip", "the", "this", "my",
+}
+ES_MARKERS = {
+    "dibujo", "dibujos", "ilustracion", "ilustración", "arte", "artista", "boceto",
+    "pintura", "lapiz", "lápiz", "hecho", "hecha", "personaje", "miarte", "creativo",
+    "hermoso", "bonito", "precioso", "gracias", "hola", "espanol", "español",
+}
+FR_MARKERS = {
+    "dessin", "dessins", "illustration", "artiste", "croquis", "peinture", "crayon",
+    "personnage", "monart", "magnifique", "beau", "belle", "merci", "bonjour",
+    "création", "creation", "français", "francais", "oeuvre", "œuvre", "fait", "faite",
 }
 
 
@@ -99,18 +125,31 @@ def normalize(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def looks_portuguese(media):
+def detect_language(media):
     caption = str(field(media, "caption_text", "") or "")
     tags = " ".join(re.findall(r"#([\w]+)", caption.lower()))
     content = normalize(caption + " " + tags)
-    pt_score = sum(1 for word in PT_MARKERS if normalize(word) in content)
-    en_score = sum(1 for word in EN_MARKERS if normalize(word) in content)
-    # Em caso de dúvida, prioriza o português brasileiro.
-    return pt_score >= en_score
+    scores = {
+        "pt": sum(1 for word in PT_MARKERS if normalize(word) in content),
+        "en": sum(1 for word in EN_MARKERS if normalize(word) in content),
+        "es": sum(1 for word in ES_MARKERS if normalize(word) in content),
+        "fr": sum(1 for word in FR_MARKERS if normalize(word) in content),
+    }
+    # Em caso de dúvida, prioriza português brasileiro; se houver texto sem sinais claros, usa inglês.
+    if max(scores.values()) == 0:
+        return "pt" if not caption else "en"
+    return max(scores, key=scores.get)
 
 
-def choose_comment(is_pt, used_comments, caption=""):
-    pool = PT_COMMENTS if is_pt else EN_COMMENTS
+def choose_comment(language_code, used_comments, caption=""):
+    pools = {"pt": PT_COMMENTS, "en": EN_COMMENTS, "es": ES_COMMENTS, "fr": FR_COMMENTS}
+    language_names = {
+        "pt": "português brasileiro bem informal, com gírias naturais",
+        "en": "casual, natural English",
+        "es": "español natural y coloquial",
+        "fr": "français naturel et courant",
+    }
+    pool = pools.get(language_code, EN_COMMENTS)
     used_normalized = {normalize(item) for item in used_comments}
     api_key = os.environ.get("GOOGLE_API_KEY", "").strip()
 
@@ -118,7 +157,7 @@ def choose_comment(is_pt, used_comments, caption=""):
     if api_key:
         try:
             client = genai.Client(api_key=api_key)
-            language = "português brasileiro bem informal, com gírias naturais" if is_pt else "casual, natural English"
+            language = language_names.get(language_code, "casual, natural English")
             recent = used_comments[-80:]
             for _ in range(3):
                 prompt = (
@@ -193,7 +232,8 @@ def main():
             break
 
         media_id = str(field(media, "pk", "") or "")
-        comment = choose_comment(looks_portuguese(media), used_comments, str(field(media, "caption_text", "") or ""))
+        language_code = detect_language(media)
+        comment = choose_comment(language_code, used_comments, str(field(media, "caption_text", "") or ""))
         if not comment or normalize(comment) in used_normalized:
             continue
 
