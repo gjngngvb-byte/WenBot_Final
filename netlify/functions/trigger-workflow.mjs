@@ -60,9 +60,81 @@ export default async (request) => {
   }
 
   const action = typeof body.action === "string" ? body.action : "publish";
-  const allowedActions = new Set(["publish", "hashtag_comments", "reply_comments"]);
+  const allowedActions = new Set(["publish", "hashtag_comments", "reply_comments", "set_social_pause"]);
   if (!allowedActions.has(action)) {
     return responseJson({ error: "Tarefa solicitada inválida." }, 400, allowedOrigin);
+  }
+
+  if (action === "set_social_pause") {
+    const controlKeys = {
+      hashtag_comments: "pause_hashtag_comments",
+      reply_comments: "pause_reply_comments"
+    };
+    const key = controlKeys[body.control];
+    if (!key || typeof body.paused !== "boolean") {
+      return responseJson({ error: "Controle de pausa inválido." }, 400, allowedOrigin);
+    }
+
+    const path = "wenbot_social_controls.json";
+    const apiUrl = "https://api.github.com/repos/gjngngvb-byte/WenBot_Final/contents/" + path;
+    const headers = {
+      "accept": "application/vnd.github+json",
+      "authorization": `Bearer ${githubToken}`,
+      "x-github-api-version": "2022-11-28",
+      "content-type": "application/json",
+      "user-agent": "WenBot-Netlify-Trigger"
+    };
+    try {
+      const currentResponse = await fetch(apiUrl + "?ref=main", { headers });
+      if (!currentResponse.ok) {
+        const details = await currentResponse.text();
+        console.error("Could not read social controls:", currentResponse.status, details.slice(0, 300));
+        return responseJson({
+          error: currentResponse.status === 401 || currentResponse.status === 403
+            ? "O token do GitHub precisa de permissão Contents: read and write para controlar as pausas."
+            : "Não foi possível ler o estado atual das pausas no GitHub."
+        }, 502, allowedOrigin);
+      }
+      const current = await currentResponse.json();
+      let state;
+      try {
+        state = JSON.parse(decodeURIComponent(escape(atob(current.content.replace(/\\s/g, "")))));
+      } catch {
+        state = { pause_hashtag_comments: true, pause_reply_comments: true };
+      }
+      state.pause_hashtag_comments = state.pause_hashtag_comments !== false;
+      state.pause_reply_comments = state.pause_reply_comments !== false;
+      state[key] = body.paused;
+
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state, null, 2) + "\\n")));
+      const saveResponse = await fetch(apiUrl, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          message: (body.paused ? "Pausar " : "Retomar ") + (body.control === "hashtag_comments" ? "comentários por hashtag" : "respostas a comentários"),
+          content: encoded,
+          sha: current.sha,
+          branch: "main"
+        })
+      });
+      if (!saveResponse.ok) {
+        const details = await saveResponse.text();
+        console.error("Could not save social controls:", saveResponse.status, details.slice(0, 300));
+        return responseJson({
+          error: saveResponse.status === 401 || saveResponse.status === 403
+            ? "O token do GitHub precisa de permissão Contents: read and write para salvar as pausas."
+            : "O GitHub não conseguiu salvar o controle de pausa."
+        }, 502, allowedOrigin);
+      }
+      return responseJson({
+        ok: true,
+        message: (body.paused ? "Função pausada: " : "Função retomada: ") + (body.control === "hashtag_comments" ? "comentários em posts." : "respostas a comentários."),
+        state
+      }, 200, allowedOrigin);
+    } catch (error) {
+      console.error("Social pause update failed:", error);
+      return responseJson({ error: "Não foi possível salvar o controle de pausa no GitHub." }, 502, allowedOrigin);
+    }
   }
 
   const params = body.params && typeof body.params === "object" ? body.params : {};
