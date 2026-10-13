@@ -98,7 +98,7 @@ export default async (request) => {
       const current = await currentResponse.json();
       let state;
       try {
-        state = JSON.parse(decodeURIComponent(escape(atob(current.content.replace(/\\s/g, "")))));
+        state = JSON.parse(decodeURIComponent(escape(atob(current.content.replace(/\s/g, "")))));
       } catch {
         state = { pause_hashtag_comments: true, pause_reply_comments: true };
       }
@@ -106,7 +106,7 @@ export default async (request) => {
       state.pause_reply_comments = state.pause_reply_comments !== false;
       state[key] = body.paused;
 
-      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state, null, 2) + "\\n")));
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state, null, 2) + "\n")));
       const saveResponse = await fetch(apiUrl, {
         method: "PUT",
         headers,
