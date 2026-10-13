@@ -14,7 +14,17 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app)  # Enable CORS for all routes
+_default_origins = (
+    "https://gjngngvb-byte.github.io,"
+    "http://localhost:5000,http://127.0.0.1:5000,"
+    "http://localhost:5500,http://127.0.0.1:5500"
+)
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("WENBOT_ALLOWED_ORIGINS", _default_origins).split(",")
+    if origin.strip()
+]
+CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=False)
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,17 +41,13 @@ def run_robo_with_params(params, process_id):
         env = os.environ.copy()
 
         # Override parameters if provided
-        if 'width' in params:
-            env['CLOUDFLARE_IMAGE_WIDTH'] = str(params['width'])
-        if 'height' in params:
-            env['CLOUDFLARE_IMAGE_HEIGHT'] = str(params['height'])
-        if 'seed' in params:
-            # Note: robo.py uses random seed internally, but we could modify it to accept seed
-            # For now, we'll note that seed control would require modifying robo.py
-            pass
-        if 'attempts' in params:
-            # This would require modifying robo.py's retry logic
-            pass
+        env['WENBOT_WIDTH'] = str(params.get('width', 1024))
+        env['WENBOT_HEIGHT'] = str(params.get('height', 1024))
+        env['WENBOT_SEED'] = '' if params.get('seed') is None else str(params['seed'])
+        env['WENBOT_ATTEMPTS'] = str(params.get('attempts', 3))
+        env['WENBOT_IMAGE_MODEL'] = params.get(
+            'model', '@cf/black-forest-labs/flux-2-klein-9b'
+        )
 
         # Ensure required API keys are present (will fail gracefully if not)
         required_keys = ['GOOGLE_API_KEY', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']
@@ -124,7 +130,9 @@ def serve_static(filename):
 def start_generation():
     """Start a new art generation process with given parameters."""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"error": "Envie um objeto JSON válido."}), 400
 
         # Generate unique process ID
         process_id = f"wenbot_{int(time.time() * 1000)}"
@@ -134,7 +142,33 @@ def start_generation():
         height = int(data.get('height', 1024))
 
         if width < 256 or width > 2048 or height < 256 or height > 2048:
-            return jsonify({"error": "Image dimensions must be between 256 and 2048 pixels"}), 400
+            return jsonify({"error": "A largura e a altura devem ficar entre 256 e 2048 pixels."}), 400
+
+        try:
+            attempts = int(data.get('attempts', 3))
+        except (TypeError, ValueError):
+            return jsonify({"error": "O número de tentativas deve ser um inteiro entre 1 e 10."}), 400
+        if attempts < 1 or attempts > 10:
+            return jsonify({"error": "O número de tentativas deve ficar entre 1 e 10."}), 400
+
+        seed = data.get('seed')
+        if seed not in (None, ''):
+            try:
+                seed = int(seed)
+            except (TypeError, ValueError):
+                return jsonify({"error": "A semente deve ser um número inteiro."}), 400
+            if seed < 0 or seed > 999999999:
+                return jsonify({"error": "A semente deve ficar entre 0 e 999999999."}), 400
+        else:
+            seed = None
+
+        model = data.get('model', '@cf/black-forest-labs/flux-2-klein-9b')
+        allowed_models = {
+            '@cf/black-forest-labs/flux-2-klein-9b',
+            '@cf/black-forest-labs/flux-1-schnell'
+        }
+        if model not in allowed_models:
+            return jsonify({"error": "Modelo de imagem inválido."}), 400
 
         # Start generation in background thread
         thread = threading.Thread(
@@ -142,8 +176,9 @@ def start_generation():
             args=({
                 'width': width,
                 'height': height,
-                'seed': data.get('seed'),
-                'attempts': int(data.get('attempts', 3))
+                'seed': seed,
+                'attempts': attempts,
+                'model': model
             }, process_id)
         )
         thread.daemon = True
@@ -211,4 +246,8 @@ if __name__ == '__main__':
     print(f"Serving frontend from: {BASE_DIR}")
     print(f"Robo script: {ROBO_SCRIPT}")
     print("Access the interface at: http://localhost:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Por segurança, só aceita conexões locais por padrão. Em hospedagem,
+    # defina WENBOT_HOST=0.0.0.0 explicitamente nas variáveis de ambiente.
+    host = os.environ.get('WENBOT_HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', '5000'))
+    app.run(host=host, port=port, debug=False)
