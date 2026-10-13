@@ -79,6 +79,7 @@ jobs:
           git push
 
       - name: Publicar diretamente no Instagram
+        id: publicar
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
         run: |
@@ -111,6 +112,9 @@ jobs:
               print("Publicação enviada ao Instagram.")
               print("Media PK:", getattr(resultado, "pk", "não informado"))
               print("Código da publicação:", getattr(resultado, "code", "não informado"))
+              media_pk = getattr(resultado, "pk", "")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write("media_pk=" + str(media_pk) + "\n")
           except Exception as exc:
               print(f"Falha ao publicar: {type(exc).__name__}: {exc}")
               print(
@@ -119,3 +123,22 @@ jobs:
               )
               sys.exit(1)
           PY
+
+      - name: Responder comentários de publicações anteriores
+        env:
+          INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          NEW_MEDIA_PK: ${{ steps.publicar.outputs.media_pk }}
+        run: |
+          python responder_comentarios.py
+          git config user.name "Wen Bot"
+          git config user.email "bot@wen.com"
+          if [ -f wen_comment_replies.json ]; then
+            git add wen_comment_replies.json
+            git commit -m "Registrar respostas aos comentários" || true
+            git push
+          else
+            echo "Nenhum histórico de comentários foi criado nesta execução."
+          fi
