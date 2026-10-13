@@ -138,8 +138,11 @@ def start_generation():
         process_id = f"wenbot_{int(time.time() * 1000)}"
 
         # Validate parameters
-        width = int(data.get('width', 1024))
-        height = int(data.get('height', 1024))
+        try:
+            width = int(data.get('width', 1024))
+            height = int(data.get('height', 1024))
+        except (TypeError, ValueError):
+            return jsonify({"error": "Largura e altura precisam ser números inteiros."}), 400
 
         if width < 256 or width > 2048 or height < 256 or height > 2048:
             return jsonify({"error": "A largura e a altura devem ficar entre 256 e 2048 pixels."}), 400
