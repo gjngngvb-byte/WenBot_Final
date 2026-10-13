@@ -127,6 +127,7 @@ jobs:
       - name: Comentar em artes encontradas por hashtags
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
           python comentar_artes_hashtags.py
           git config user.name "Wen Bot"
