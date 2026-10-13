@@ -36,7 +36,8 @@ def generate_reply(comment_text, caption, username, previous_replies):
     prompt = f"""
 Você responde comentários do perfil artístico Wen no Instagram.
 Escreva UMA resposta curta, humana, simpática e específica ao comentário recebido.
-Use português brasileiro. Considere a legenda da publicação para entender o contexto.
+Primeiro identifique o idioma do comentário recebido e responda no MESMO idioma, mantendo a variante natural desse idioma. Use português brasileiro somente se a pessoa comentou em português; se comentou em inglês, responda em inglês; faça o mesmo com espanhol, francês e outros idiomas que conseguir identificar.
+Considere a legenda da publicação e o sentido do comentário para responder de forma coerente, sem responder apenas com um agradecimento genérico quando a pessoa fez uma pergunta ou comentou algo específico.
 Não seja robótico, não use frases prontas, não repita respostas anteriores.
 Não invente fatos sobre a imagem ou sobre o autor. Não prometa nada, não peça dados pessoais.
 Não inclua hashtags, links ou mais de um emoji. Responda diretamente ao que a pessoa disse.
@@ -93,9 +94,9 @@ def main():
     except json.JSONDecodeError as exc:
         raise RuntimeError("INSTAGRAM_SESSION não contém JSON válido.") from exc
 
+    # Em publicação normal, exclui a arte recém-publicada. No modo manual de respostas,
+    # NEW_MEDIA_PK fica vazio e o bot revisa as publicações existentes.
     new_media_pk = os.environ.get("NEW_MEDIA_PK", "").strip()
-    if not new_media_pk:
-        raise RuntimeError("A publicação nova não informou seu ID; por segurança, nenhuma resposta será enviada.")
 
     client = Client()
     client.delay_range = [4, 9]
@@ -110,7 +111,7 @@ def main():
     ]
 
     medias = client.user_medias(client.user_id, amount=100)
-    previous_medias = [media for media in medias if str(value(media, "pk", "")) != new_media_pk]
+    previous_medias = [media for media in medias if str(value(media, "pk", "")) != new_media_pk] if new_media_pk else medias
     print(f"Publicação nova: {new_media_pk}. Verificando {len(previous_medias)} publicações anteriores.")
 
     sent = 0
@@ -164,6 +165,7 @@ def main():
                     "comment_id": comment_pk,
                     "media_id": media_pk,
                     "username": username,
+                    "comment": text[:300],
                     "reply": answer,
                     "replied_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 })

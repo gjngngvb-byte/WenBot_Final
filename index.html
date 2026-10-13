@@ -410,6 +410,13 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
+        .activity-list { display: grid; gap: 10px; margin-top: 12px; }
+        .activity-item { padding: 12px 14px; border-radius: 10px; background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.08); overflow-wrap: anywhere; }
+        .activity-item small { display: block; color: #aaa; margin-top: 5px; }
+        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+        .action-note { color: #bbb; font-size: .9rem; line-height: 1.5; margin-top: 8px; }
+        .btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
         .footer {
             text-align: center;
             margin-top: 30px;
@@ -516,6 +523,12 @@
                     <button class="btn btn-secondary" id="logsBtn">📋 Ver Logs</button>
                     <button class="btn download-btn" id="downloadBtn" disabled>💾 Baixar Arte</button>
                 </div>
+                <p class="action-note">As ações sociais usam o histórico do robô para evitar comentar duas vezes na mesma publicação e reduzir repetições.</p>
+                <div class="action-grid">
+                    <button class="btn btn-secondary" id="hashtagCommentsBtn">🔎 Buscar e comentar em novos posts</button>
+                    <button class="btn btn-secondary" id="replyCommentsBtn">💬 Responder comentários pendentes</button>
+                    <button class="btn btn-secondary" id="refreshActivityBtn">🧾 Atualizar últimos comentários e respostas</button>
+                </div>
 
                 <div class="status" id="statusDisplay">
                     Pronto para gerar arte. Configure os parâmetros e clique em "Gerar Nova Arte".
@@ -555,7 +568,16 @@
         </div>
 
         <div class="panel" style="grid-column: 1 / -1;">
-            <h2>📊 Estatísticas e Informações</h3>
+            <h2>🗂️ Atividade recente do Instagram</h2>
+            <p class="action-note">Mostra o histórico salvo pelo WenBot no GitHub. Os registros aparecem depois que a execução terminar e o histórico for enviado ao repositório.</p>
+            <div class="action-grid">
+                <div><h3>🎨 Comentários em artes por hashtag</h3><div class="activity-list" id="hashtagActivity"><div class="activity-item">Carregando histórico...</div></div></div>
+                <div><h3>💬 Respostas aos seus comentários</h3><div class="activity-list" id="replyActivity"><div class="activity-item">Carregando histórico...</div></div></div>
+            </div>
+        </div>
+
+        <div class="panel" style="grid-column: 1 / -1;">
+            <h2>📊 Estatísticas e Informações</h2>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
                 <div>
                     <h3>📅 Última Atualização</h3>
@@ -598,6 +620,9 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const copyLegendBtn = document.getElementById('copyLegendBtn');
         const copyIdeaBtn = document.getElementById('copyIdeaBtn');
+        const hashtagCommentsBtn = document.getElementById('hashtagCommentsBtn');
+        const replyCommentsBtn = document.getElementById('replyCommentsBtn');
+        const refreshActivityBtn = document.getElementById('refreshActivityBtn');
         const statusDisplay = document.getElementById('statusDisplay');
         const logsContainer = document.getElementById('logsContainer');
         const logsDisplay = document.getElementById('logsDisplay');
@@ -630,6 +655,10 @@
             downloadBtn.addEventListener('click', downloadArt);
             copyLegendBtn.addEventListener('click', () => copyToClipboard(artLegend.textContent, 'Legenda copiada!'));
             copyIdeaBtn.addEventListener('click', () => copyToClipboard(artIdea.textContent, 'Conceito copiado!'));
+            hashtagCommentsBtn.addEventListener('click', () => triggerSocialWorkflow('hashtag_comments'));
+            replyCommentsBtn.addEventListener('click', () => triggerSocialWorkflow('reply_comments'));
+            refreshActivityBtn.addEventListener('click', loadSocialActivity);
+            loadSocialActivity();
         }
 
         if (document.readyState === 'loading') {
@@ -665,6 +694,95 @@
 
             // Atualiza informações do arquivo
             updateFileInfo();
+        }
+
+        async function loadSocialActivity() {
+            const hashtagBox = document.getElementById('hashtagActivity');
+            const replyBox = document.getElementById('replyActivity');
+            refreshActivityBtn.disabled = true;
+            refreshActivityBtn.textContent = 'Atualizando histórico...';
+            try {
+                const [hashtagResponse, replyResponse] = await Promise.all([
+                    fetch('wen_art_hashtag_comments.json?t=' + Date.now(), { cache: 'no-store' }),
+                    fetch('wen_comment_replies.json?t=' + Date.now(), { cache: 'no-store' })
+                ]);
+                const hashtagData = hashtagResponse.ok ? await hashtagResponse.json() : {};
+                const replyData = replyResponse.ok ? await replyResponse.json() : {};
+                renderActivity(hashtagBox, (hashtagData.comment_log || []).slice(-8).reverse(), 'hashtag');
+                renderActivity(replyBox, (replyData.replies || []).slice(-8).reverse(), 'reply');
+            } catch (error) {
+                hashtagBox.textContent = 'Não foi possível carregar o histórico agora.';
+                replyBox.textContent = 'Não foi possível carregar o histórico agora.';
+            } finally {
+                refreshActivityBtn.disabled = false;
+                refreshActivityBtn.textContent = '🧾 Atualizar últimos comentários e respostas';
+            }
+        }
+
+        function renderActivity(container, entries, type) {
+            container.replaceChildren();
+            if (!entries.length) {
+                const empty = document.createElement('div');
+                empty.className = 'activity-item';
+                empty.textContent = 'Nenhum registro disponível ainda. Depois da próxima execução, atualize aqui.';
+                container.appendChild(empty);
+                return;
+            }
+            entries.forEach(entry => {
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                const message = type === 'hashtag' ? (entry.comment || 'Comentário enviado') : (entry.reply || 'Resposta enviada');
+                const context = type === 'hashtag'
+                    ? [entry.username ? '@' + entry.username : '', entry.caption ? entry.caption.slice(0, 120) : 'Publicação encontrada por hashtag'].filter(Boolean).join(' · ')
+                    : [entry.username ? '@' + entry.username : '', entry.comment ? 'Comentário recebido: ' + entry.comment : 'Resposta ao comentário'].filter(Boolean).join(' · ');
+                item.textContent = message;
+                const small = document.createElement('small');
+                small.textContent = [context, entry.commented_at || entry.replied_at || ''].filter(Boolean).join(' | ');
+                item.appendChild(small);
+                container.appendChild(item);
+            });
+        }
+
+        async function triggerSocialWorkflow(action) {
+            const isHashtag = action === 'hashtag_comments';
+            const button = isHashtag ? hashtagCommentsBtn : replyCommentsBtn;
+            if (button.disabled) return;
+            const confirmText = isHashtag
+                ? 'O WenBot vai buscar publicações recentes pelas hashtags de arte e poderá publicar até 3 comentários nesta execução. Continuar?'
+                : 'O WenBot vai procurar comentários ainda sem resposta nas suas publicações e responder a eles. Continuar?';
+            if (!window.confirm(confirmText)) return;
+            const password = window.prompt('Digite a senha de acionamento configurada no Netlify:');
+            if (!password) return;
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'Enviando pedido...';
+            statusDisplay.className = 'status running';
+            statusDisplay.textContent = 'Enviando a tarefa ao GitHub Actions...';
+            try {
+                const response = await fetch('https://wenbot-trigger.netlify.app/.netlify/functions/trigger-workflow', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, action })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(result.error || 'Não foi possível iniciar a tarefa.');
+                statusDisplay.textContent = (result.message || 'Tarefa iniciada.') + ' Acompanhe a execução no GitHub Actions.';
+                const link = document.createElement('a');
+                link.href = result.workflow_url || 'https://github.com/gjngngvb-byte/WenBot_Final/actions/workflows/wen_action.yml';
+                link.target = '_blank'; link.rel = 'noopener noreferrer';
+                link.textContent = 'Abrir execução no GitHub Actions';
+                link.style.cssText = 'display:inline-block;margin-top:8px;color:#00d4ff;text-decoration:underline';
+                statusDisplay.appendChild(document.createElement('br'));
+                statusDisplay.appendChild(link);
+                showToast('success', 'Pedido enviado', 'A tarefa foi encaminhada ao GitHub Actions.', 6000);
+            } catch (error) {
+                statusDisplay.className = 'status';
+                statusDisplay.textContent = 'Falha ao iniciar: ' + error.message;
+                showToast('error', 'Falha ao iniciar', error.message, 7000);
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
         }
 
         function updateFileInfo() {

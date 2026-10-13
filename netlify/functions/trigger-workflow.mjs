@@ -59,6 +59,12 @@ export default async (request) => {
     return responseJson({ error: "Senha de acionamento incorreta." }, 401, allowedOrigin);
   }
 
+  const action = typeof body.action === "string" ? body.action : "publish";
+  const allowedActions = new Set(["publish", "hashtag_comments", "reply_comments"]);
+  if (!allowedActions.has(action)) {
+    return responseJson({ error: "Tarefa solicitada inválida." }, 400, allowedOrigin);
+  }
+
   const params = body.params && typeof body.params === "object" ? body.params : {};
   const width = Number(params.width ?? 1024);
   const height = Number(params.height ?? 1024);
@@ -101,6 +107,7 @@ export default async (request) => {
         body: JSON.stringify({
           ref: "main",
           inputs: {
+            action,
             width: String(width),
             height: String(height),
             seed,
