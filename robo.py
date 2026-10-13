@@ -159,7 +159,7 @@ def baixar_imagem(prompt):
                     f"Gerando imagem com Cloudflare Workers AI ({modelo}, "
                     f"tentativa {tentativa}/{WENBOT_ATTEMPTS})..."
                 )
-                seed = RNG.randint(1, 999999999)
+                seed = int(WENBOT_SEED) if WENBOT_SEED else RNG.randint(1, 999999999)
                 if formato == "klein":
                     payload = {
                         "prompt": prompt_api,
