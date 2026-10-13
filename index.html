@@ -529,6 +529,15 @@
                     <button class="btn btn-secondary" id="replyCommentsBtn">💬 Responder comentários pendentes</button>
                     <button class="btn btn-secondary" id="refreshActivityBtn">🧾 Atualizar últimos comentários e respostas</button>
                 </div>
+                <div class="param-group" style="margin-top:16px">
+                    <label>⏸️ Controles de segurança social</label>
+                    <p class="action-note">Pausar impede novas ações sociais do WenBot nas próximas execuções. Isso não desfaz comentários já enviados nem interrompe uma execução que já começou.</p>
+                    <div class="action-grid">
+                        <button class="btn btn-danger" id="pauseHashtagBtn" aria-pressed="true">⏸️ Pausar comentários em posts</button>
+                        <button class="btn btn-danger" id="pauseRepliesBtn" aria-pressed="true">⏸️ Pausar respostas a comentários</button>
+                    </div>
+                    <p class="action-note" id="socialPauseStatus">Carregando estado dos controles...</p>
+                </div>
 
                 <div class="status" id="statusDisplay">
                     Pronto para gerar arte. Configure os parâmetros e clique em "Gerar Nova Arte".
@@ -623,6 +632,10 @@
         const hashtagCommentsBtn = document.getElementById('hashtagCommentsBtn');
         const replyCommentsBtn = document.getElementById('replyCommentsBtn');
         const refreshActivityBtn = document.getElementById('refreshActivityBtn');
+        const pauseHashtagBtn = document.getElementById('pauseHashtagBtn');
+        const pauseRepliesBtn = document.getElementById('pauseRepliesBtn');
+        const socialPauseStatus = document.getElementById('socialPauseStatus');
+        let socialPauseState = { pause_hashtag_comments: true, pause_reply_comments: true };
         const statusDisplay = document.getElementById('statusDisplay');
         const logsContainer = document.getElementById('logsContainer');
         const logsDisplay = document.getElementById('logsDisplay');
@@ -658,6 +671,9 @@
             hashtagCommentsBtn.addEventListener('click', () => triggerSocialWorkflow('hashtag_comments'));
             replyCommentsBtn.addEventListener('click', () => triggerSocialWorkflow('reply_comments'));
             refreshActivityBtn.addEventListener('click', loadSocialActivity);
+            pauseHashtagBtn.addEventListener('click', () => setSocialPause('hashtag_comments'));
+            pauseRepliesBtn.addEventListener('click', () => setSocialPause('reply_comments'));
+            loadSocialPauseState();
             loadSocialActivity();
         }
 
@@ -742,6 +758,68 @@
                 item.appendChild(small);
                 container.appendChild(item);
             });
+        }
+
+        async function loadSocialPauseState() {
+            try {
+                const url = 'https://raw.githubusercontent.com/gjngngvb-byte/WenBot_Final/main/wenbot_social_controls.json?t=' + Date.now();
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) throw new Error('Não foi possível ler os controles.');
+                const data = await response.json();
+                socialPauseState = {
+                    pause_hashtag_comments: data.pause_hashtag_comments !== false,
+                    pause_reply_comments: data.pause_reply_comments !== false
+                };
+                renderSocialPauseState();
+            } catch (error) {
+                socialPauseStatus.textContent = 'Não foi possível confirmar o estado. Por segurança, considere as duas funções pausadas até carregar novamente.';
+                pauseHashtagBtn.disabled = true;
+                pauseRepliesBtn.disabled = true;
+            }
+        }
+
+        function renderSocialPauseState() {
+            const hashtagPaused = socialPauseState.pause_hashtag_comments;
+            const repliesPaused = socialPauseState.pause_reply_comments;
+            pauseHashtagBtn.textContent = hashtagPaused ? '▶️ Retomar comentários em posts' : '⏸️ Pausar comentários em posts';
+            pauseRepliesBtn.textContent = repliesPaused ? '▶️ Retomar respostas a comentários' : '⏸️ Pausar respostas a comentários';
+            pauseHashtagBtn.className = hashtagPaused ? 'btn btn-secondary' : 'btn btn-danger';
+            pauseRepliesBtn.className = repliesPaused ? 'btn btn-secondary' : 'btn btn-danger';
+            pauseHashtagBtn.setAttribute('aria-pressed', String(hashtagPaused));
+            pauseRepliesBtn.setAttribute('aria-pressed', String(repliesPaused));
+            socialPauseStatus.textContent = 'Comentários em posts: ' + (hashtagPaused ? 'PAUSADOS' : 'ATIVOS') +
+                ' · Respostas: ' + (repliesPaused ? 'PAUSADAS' : 'ATIVAS');
+        }
+
+        async function setSocialPause(control) {
+            const key = control === 'hashtag_comments' ? 'pause_hashtag_comments' : 'pause_reply_comments';
+            const nextPaused = !socialPauseState[key];
+            const label = control === 'hashtag_comments' ? 'comentários em posts de outras contas' : 'respostas aos comentários recebidos';
+            if (nextPaused && !window.confirm('Pausar ' + label + '? Novas ações desse tipo serão ignoradas nas próximas execuções.')) return;
+            if (!nextPaused && !window.confirm('Retomar ' + label + '? O WenBot poderá voltar a executar essa ação nas próximas execuções.')) return;
+            const password = window.prompt('Digite a senha de acionamento configurada no Netlify:');
+            if (!password) return;
+            const button = control === 'hashtag_comments' ? pauseHashtagBtn : pauseRepliesBtn;
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'Salvando...';
+            try {
+                const response = await fetch('https://wenbot-trigger.netlify.app/.netlify/functions/trigger-workflow', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, action: 'set_social_pause', control, paused: nextPaused })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(result.error || 'Não foi possível salvar o controle.');
+                socialPauseState[key] = nextPaused;
+                renderSocialPauseState();
+                showToast('success', nextPaused ? 'Função pausada' : 'Função retomada', label + (nextPaused ? ' foi pausado.' : ' foi retomado.'), 6000);
+            } catch (error) {
+                showToast('error', 'Não foi possível alterar', error.message, 7000);
+                button.textContent = originalText;
+            } finally {
+                button.disabled = false;
+            }
         }
 
         async function triggerSocialWorkflow(action) {
