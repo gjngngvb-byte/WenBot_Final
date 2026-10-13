@@ -36,6 +36,11 @@
             --color-panel-end: rgba(9, 14, 32, 0.92);
             --color-field-overlay: rgba(5, 9, 24, 0.54);
             --color-button-border: rgba(196, 167, 255, 0.24);
+            --color-button-glass: rgba(109, 168, 255, 0.12);
+            --color-button-glass-hover: rgba(167, 139, 250, 0.22);
+            --color-button-highlight: rgba(244, 245, 255, 0.32);
+            --shadow-button-glow: 0 0 1.25rem rgba(109, 168, 255, 0.3), 0 0 2rem rgba(167, 139, 250, 0.24);
+            --button-min-width: 10rem;
             --color-field-raised: rgba(5, 9, 24, 0.62);
             --color-toast: rgba(14, 20, 45, 0.96);
             --color-activity: rgba(5, 9, 24, 0.58);
@@ -231,40 +236,58 @@
         }
         .param-group small { display: block; margin-block-start: var(--space-2xs); color: var(--color-text-subtle); font-size: var(--font--2); }
         .btn, .download-btn {
+            position: relative;
+            isolation: isolate;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: var(--space-2xs);
+            min-width: min(100%, var(--button-min-width));
             min-height: var(--space-xl);
             padding: var(--space-xs) var(--space-sm);
+            overflow: hidden;
             color: var(--color-text);
-            background: var(--gradient-button);
+            background: linear-gradient(135deg, var(--color-button-glass), var(--color-button-glass-hover));
             border: 1px solid var(--color-button-border);
             border-radius: var(--radius-md);
-            box-shadow: var(--shadow-blue);
+            box-shadow: inset 0 1px 0 var(--color-button-highlight), var(--shadow-card);
+            backdrop-filter: blur(1rem) saturate(145%);
+            -webkit-backdrop-filter: blur(1rem) saturate(145%);
             font-size: var(--font--1);
             font-weight: 650;
             line-height: var(--line-heading);
             text-align: center;
             text-decoration: none;
             cursor: pointer;
-            transition: transform var(--motion-standard) var(--ease-spring), box-shadow var(--motion-standard) var(--ease-standard), filter var(--motion-standard) var(--ease-standard), border-color var(--motion-standard) var(--ease-standard);
+            transition: transform var(--motion-standard) var(--ease-spring), box-shadow var(--motion-standard) var(--ease-standard), background var(--motion-standard) var(--ease-standard), border-color var(--motion-standard) var(--ease-standard);
+        }
+        .btn::before, .download-btn::before {
+            position: absolute;
+            z-index: -1;
+            inset: 0;
+            content: "";
+            opacity: 0;
+            background: linear-gradient(115deg, transparent 0%, var(--color-button-highlight) 48%, transparent 70%);
+            transform: translateX(-110%);
+            transition: transform var(--motion-slow) var(--ease-standard), opacity var(--motion-standard) var(--ease-standard);
+            pointer-events: none;
         }
         .btn:hover, .download-btn:hover {
-            transform: translateY(-0.125rem);
-            filter: brightness(1.08);
-            border-color: var(--color-border-strong);
-            box-shadow: var(--shadow-purple);
+            transform: translateY(calc(var(--space-3xs) * -1));
+            border-color: var(--color-purple-bright);
+            background: linear-gradient(135deg, var(--color-button-glass-hover), var(--color-button-glass));
+            box-shadow: var(--shadow-button-glow), inset 0 1px 0 var(--color-button-highlight);
         }
+        .btn:hover::before, .download-btn:hover::before { opacity: 1; transform: translateX(110%); }
         .btn:active, .download-btn:active { transform: translateY(0); }
-        .btn:disabled, .download-btn:disabled { opacity: 0.48; cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
+        .btn:disabled, .download-btn:disabled { opacity: 0.48; cursor: not-allowed; transform: none; box-shadow: none; }
         .btn:focus-visible, .download-btn:focus-visible, .toast-close:focus-visible, a:focus-visible {
             outline: none;
             box-shadow: var(--focus-ring);
         }
-        .btn-secondary { background: linear-gradient(115deg, var(--color-button-secondary-start), var(--color-button-secondary-end)); box-shadow: var(--shadow-purple); }
-        .btn-danger { background: var(--gradient-danger); box-shadow: var(--shadow-purple); }
-        .download-btn { margin-block-start: var(--space-xs); background: var(--gradient-success); box-shadow: var(--shadow-blue); }
+        .btn-secondary { background: linear-gradient(135deg, var(--color-button-glass), var(--color-button-glass-hover)); }
+        .btn-danger { background: linear-gradient(135deg, var(--color-button-glass-hover), var(--color-button-glass)); }
+        .download-btn { margin-block-start: var(--space-xs); }
         .action-note { margin-block-start: var(--space-2xs); margin-block-end: var(--space-xs); color: var(--color-text-muted); font-size: var(--font--1); line-height: var(--line-body); }
         .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.75rem), 1fr)); gap: var(--space-xs); margin-block-start: var(--space-sm); }
         .status {
