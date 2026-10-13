@@ -8,6 +8,7 @@ import unicodedata
 from pathlib import Path
 
 from instagrapi import Client
+from google import genai
 
 HISTORY_PATH = Path("wen_art_hashtag_comments.json")
 # Limite conservador por execução. O workflow agenda até cinco execuções por dia.
@@ -107,19 +108,45 @@ def looks_portuguese(media):
     return pt_score >= en_score
 
 
-def choose_comment(is_pt, used_comments):
+def choose_comment(is_pt, used_comments, caption=""):
     pool = PT_COMMENTS if is_pt else EN_COMMENTS
     used_normalized = {normalize(item) for item in used_comments}
+    api_key = os.environ.get("GOOGLE_API_KEY", "").strip()
+
+    # A IA cria variações novas, usando o histórico para evitar frases repetidas.
+    if api_key:
+        try:
+            client = genai.Client(api_key=api_key)
+            language = "português brasileiro bem informal, com gírias naturais" if is_pt else "casual, natural English"
+            recent = used_comments[-80:]
+            for _ in range(3):
+                prompt = (
+                    "Escreva um comentário elogioso muito curto para uma publicação de arte no Instagram. "
+                    f"Idioma e estilo: {language}. "
+                    "Pode ser uma reação espontânea, uma frase ou apenas emojis. "
+                    "Seja positivo e natural; não invente detalhes específicos sobre a imagem. "
+                    "Não use hashtags, perguntas, links nem mais de 100 caracteres. "
+                    "Crie uma formulação nova, não parecida com os exemplos já usados. "
+                    f"Legenda/hashtags da publicação: {caption[:500]}\n"
+                    f"Comentários já usados, que devem ser evitados: {recent}\n"
+                    "Retorne somente o comentário."
+                )
+                result = client.models.generate_content(
+                    model="gemini-3.8-flash",
+                    contents=prompt,
+                )
+                answer = (result.text or "").strip().strip('"').strip("'")
+                answer = re.sub(r"^@\\w+\\s*", "", answer).strip()
+                if answer and len(answer) <= 100 and normalize(answer) not in used_normalized:
+                    return answer
+        except Exception as exc:
+            print(f"IA indisponível para criar elogio: {type(exc).__name__}: {exc}")
+
     candidates = [item for item in pool if normalize(item) not in used_normalized]
-
-    # Pequenas variações de pontuação/emoji ampliam a variedade sem repetir
-    # exatamente o elogio já usado. Não são usadas para tentar contornar limites.
     if not candidates:
-        print("A lista de elogios inéditos deste idioma acabou; publicação ignorada.")
+        print("Sem elogios inéditos disponíveis no modo local; publicação ignorada.")
         return None
-
-    phrase = random.choice(candidates)
-    return phrase
+    return random.choice(candidates)
 
 
 def main():
@@ -162,7 +189,7 @@ def main():
             break
 
         media_id = str(field(media, "pk", "") or "")
-        comment = choose_comment(looks_portuguese(media), used_comments)
+        comment = choose_comment(looks_portuguese(media), used_comments, str(field(media, "caption_text", "") or ""))
         if not comment or normalize(comment) in used_normalized:
             continue
 
