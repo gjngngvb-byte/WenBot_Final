@@ -136,7 +136,7 @@ def choose_comment(is_pt, used_comments, caption=""):
                     contents=prompt,
                 )
                 answer = (result.text or "").strip().strip('"').strip("'")
-                answer = re.sub(r"^@\\w+\\s*", "", answer).strip()
+                answer = re.sub(r"^@\w+\s*", "", answer).strip()
                 if answer and len(answer) <= 100 and normalize(answer) not in used_normalized:
                     return answer
         except Exception as exc:
