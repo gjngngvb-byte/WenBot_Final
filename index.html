@@ -668,11 +668,10 @@
         }
 
         function updateFileInfo() {
-            // In a real implementation, this would call an API endpoint
-            // For now, we'll simulate or use file timestamps if available
-            lastUpdateEl.textContent = new Date().toLocaleString('pt-BR');
-            systemInfoEl.textContent = "Bot Wen • Interface pronta";
-            fileInfoEl.textContent = "Aguardando dados...";
+            // Não inventa horário de geração nem afirma que uma arte foi criada.
+            lastUpdateEl.textContent = "Atualize a página após a execução do workflow";
+            systemInfoEl.textContent = "WenBot • Interface conectada";
+            fileInfoEl.textContent = "Arte, legenda e conceito publicados no repositório";
         }
 
         function checkBackendHealth() {
@@ -945,8 +944,7 @@
                 }
 
             } catch (error) {
-                // If we can't reach the backend, we might be in simulation mode
-                // For now, we'll just log it but not fail
+                // A falha ao consultar o backend não representa sucesso nem geração simulada.
                 addLog("info", `Verificando status: ${error.message}`);
             }
         }
