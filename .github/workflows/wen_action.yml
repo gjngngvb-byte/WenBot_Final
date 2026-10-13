@@ -112,8 +112,9 @@ jobs:
               print("Publicação enviada ao Instagram.")
               print("Media PK:", getattr(resultado, "pk", "não informado"))
               print("Código da publicação:", getattr(resultado, "code", "não informado"))
+              media_pk = getattr(resultado, "pk", "")
               with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-                  output.write(f"media_pk={getattr(resultado, \"pk\", \"\")}\\n")
+                  output.write("media_pk=" + str(media_pk) + "\n")
           except Exception as exc:
               print(f"Falha ao publicar: {type(exc).__name__}: {exc}")
               print(
