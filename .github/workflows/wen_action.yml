@@ -57,6 +57,35 @@ jobs:
       - name: Baixar código
         uses: actions/checkout@v4
 
+      - name: Ler controles de pausa das ações sociais
+        id: social_controls
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          defaults = {
+              "pause_hashtag_comments": True,
+              "pause_reply_comments": True,
+          }
+          try:
+              data = json.loads(Path("wenbot_social_controls.json").read_text(encoding="utf-8"))
+              if isinstance(data, dict):
+                  defaults.update({
+                      key: data.get(key, True) is True
+                      for key in defaults
+                  })
+          except Exception as exc:
+              print(f"Não foi possível ler os controles; ações sociais ficam pausadas por segurança: {exc}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("hashtag_enabled=" + str(not defaults["pause_hashtag_comments"]).lower() + "\\n")
+              output.write("reply_enabled=" + str(not defaults["pause_reply_comments"]).lower() + "\\n")
+          print("Comentários por hashtag:", "ATIVOS" if not defaults["pause_hashtag_comments"] else "PAUSADOS")
+          print("Respostas:", "ATIVAS" if not defaults["pause_reply_comments"] else "PAUSADAS")
+          PY
+
       - name: Instalar Python
         uses: actions/setup-python@v5
         with:
@@ -137,7 +166,7 @@ jobs:
           PY
 
       - name: Comentar em artes encontradas por hashtags
-        if: ${{ inputs.action != 'reply_comments' }}
+        if: ${{ inputs.action != 'reply_comments' && steps.social_controls.outputs.hashtag_enabled == 'true' }}
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -154,7 +183,7 @@ jobs:
           fi
 
       - name: Responder comentários de publicações anteriores
-        if: ${{ inputs.action != 'hashtag_comments' }}
+        if: ${{ inputs.action != 'hashtag_comments' && steps.social_controls.outputs.reply_enabled == 'true' }}
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
