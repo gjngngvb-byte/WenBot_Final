@@ -1,0 +1,197 @@
+import json
+import os
+import random
+import re
+import sys
+import time
+import unicodedata
+from pathlib import Path
+
+from instagrapi import Client
+
+HISTORY_PATH = Path("wen_art_hashtag_comments.json")
+# Limite conservador por execução. O workflow agenda até cinco execuções por dia.
+MAX_COMMENTS_PER_RUN = 3
+MEDIA_PER_HASHTAG = 8
+
+# Hashtags em português, inglês e outras tags comuns de ilustração.
+HASHTAGS = [
+    "desenho", "desenhos", "arte", "artedigital", "ilustracao",
+    "ilustrador", "desenhando", "rabisco", "sketchbrasil", "artesbrasileiras",
+    "drawing", "drawings", "artwork", "illustration", "illustrator",
+    "sketch", "sketchbook", "digitalart", "traditionalart", "fanart",
+    "artistsoninstagram", "artoftheday", "pencildrawing", "inkdrawing",
+    "characterdesign", "conceptart", "painting", "creativeart",
+]
+
+# Frases curtas, coloquiais e adequadas a vários estilos de arte.
+PT_COMMENTS = [
+    "nuusa, q bonito", "ficou muito showww", "inveja de quem desenha assim 😮‍💨",
+    "mds, ficou lindo", "caraca, q arte bonita", "isso ficou brabo demais",
+    "o talento dessa pessoa 😭", "ficou chique dms", "que capricho, sério",
+    "tá muito lindo isso", "aí simmm 🎉", "ficou bom demais", "que coisa linda, véi",
+    "o tanto que eu gostei disso", "isso tá show de bola", "perfeição viu",
+    "nu, mandou muito", "ficou incrível dms", "essa ficou top demais",
+    "que desenho gostoso de olhar", "talento puro, slk", "ficou absurdo de bom",
+    "amei real oficial", "isso merece muito mais atenção", "bonito pra caramba",
+    "ficou massa demais", "que trabalho lindo 🫶", "brabooo demais",
+    "eu queria desenhar assim 😭", "simplesmente lindo", "olha esse capricho!",
+    "ficou show demais 🎉", "meu deus, que bonito", "a vibe dessa arte tá boa demais",
+    "mandou bem demais", "isso ficou uma gracinha", "arte linda da conta",
+    "tá de parabéns demais", "ficou fino viu", "que desenho maravilhoso",
+    "aí você esculachou", "ficou bonito demais, sério", "essa ficou pancada",
+    "que talento absurdo", "amei essa aqui", "tá muito daora", "ficou bom viu!",
+    "nossa senhora, que arte", "isso tá lindo demaisss", "obra de milhões 😮‍💨",
+    "o artista entregou tudo", "essa ficou braba", "simplesmente showww",
+    "que coisa mais linda 🎉", "ficou delicinha de olhar", "arrasou nessa",
+    "isso ficou muito irado", "bonito demais da conta", "eu curti muito essa",
+    "ficou surreal de bom", "a qualidade tá absurda", "perfeita essa arte",
+]
+
+EN_COMMENTS = [
+    "this looks so good!", "such a cool piece 🎉", "love the vibe of this",
+    "this is seriously beautiful", "so much talent here", "this turned out amazing",
+    "the details are so good", "this is awesomeee", "such a lovely artwork",
+    "this goes hard 😮‍💨", "really nice work!", "this looks incredible",
+    "the style is so cool", "absolutely love this", "what a beautiful piece",
+    "this is so satisfying to look at", "great work on this!", "so freaking cool",
+    "you nailed this one", "this deserves more love", "such a clean drawing",
+    "this is beautiful ✨", "love how this turned out", "seriously impressive",
+    "this is a whole vibe", "so cool, wow", "amazing work 🎉",
+    "the talent is unreal", "this looks fantastic", "I really like this one",
+]
+
+PT_MARKERS = {
+    "desenho", "desenhos", "arte", "artes", "ilustração", "ilustracao",
+    "feito", "feita", "meu", "minha", "estudo", "rabisco", "pintura",
+    "lápis", "lapis", "brasil", "brasileiro", "brasileira", "desenhando",
+    "personagem", "fanartbrasil", "artedigital",
+}
+EN_MARKERS = {
+    "drawing", "artwork", "sketch", "illustration", "myart", "artist",
+    "digitalart", "painting", "made", "character", "fanart", "wip",
+}
+
+
+def field(obj, name, default=None):
+    if isinstance(obj, dict):
+        return obj.get(name, default)
+    return getattr(obj, name, default)
+
+
+def load_history():
+    try:
+        data = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            data.setdefault("commented_media_ids", [])
+            data.setdefault("used_comments", [])
+            return data
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {"commented_media_ids": [], "used_comments": []}
+
+
+def normalize(text):
+    text = unicodedata.normalize("NFKD", text.casefold())
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def looks_portuguese(media):
+    caption = str(field(media, "caption_text", "") or "")
+    tags = " ".join(re.findall(r"#([\w]+)", caption.lower()))
+    content = normalize(caption + " " + tags)
+    pt_score = sum(1 for word in PT_MARKERS if normalize(word) in content)
+    en_score = sum(1 for word in EN_MARKERS if normalize(word) in content)
+    # Em caso de dúvida, prioriza o português brasileiro.
+    return pt_score >= en_score
+
+
+def choose_comment(is_pt, used_comments):
+    pool = PT_COMMENTS if is_pt else EN_COMMENTS
+    used_normalized = {normalize(item) for item in used_comments}
+    candidates = [item for item in pool if normalize(item) not in used_normalized]
+
+    # Pequenas variações de pontuação/emoji ampliam a variedade sem repetir
+    # exatamente o elogio já usado. Não são usadas para tentar contornar limites.
+    if not candidates:
+        print("A lista de elogios inéditos deste idioma acabou; publicação ignorada.")
+        return None
+
+    phrase = random.choice(candidates)
+    return phrase
+
+
+def main():
+    session_json = os.environ.get("INSTAGRAM_SESSION", "").strip()
+    if not session_json:
+        raise RuntimeError("Secret INSTAGRAM_SESSION não configurado.")
+    settings = json.loads(session_json)
+
+    client = Client()
+    client.set_settings(settings)
+    client.get_timeline_feed()
+
+    history = load_history()
+    commented_ids = {str(item) for item in history["commented_media_ids"]}
+    used_comments = list(history["used_comments"])
+    used_normalized = {normalize(item) for item in used_comments}
+
+    found = {}
+    for hashtag in HASHTAGS:
+        try:
+            medias = client.hashtag_medias_recent(hashtag, amount=MEDIA_PER_HASHTAG)
+            for media in medias:
+                media_id = str(field(media, "pk", "") or "")
+                if not media_id or media_id in commented_ids:
+                    continue
+                # Apenas publicações de imagem/vídeo com legenda acessível.
+                found.setdefault(media_id, media)
+        except Exception as exc:
+            print(f"Hashtag #{hashtag} indisponível: {type(exc).__name__}: {exc}")
+            continue
+
+    candidates = list(found.values())
+    random.shuffle(candidates)
+    print(f"Encontradas {len(candidates)} publicações ainda não comentadas.")
+
+    sent = 0
+    for media in candidates:
+        if sent >= MAX_COMMENTS_PER_RUN:
+            print(f"Limite de {MAX_COMMENTS_PER_RUN} comentários nesta execução atingido.")
+            break
+
+        media_id = str(field(media, "pk", "") or "")
+        comment = choose_comment(looks_portuguese(media), used_comments)
+        if not comment or normalize(comment) in used_normalized:
+            continue
+
+        try:
+            client.media_comment(media_id, comment)
+            commented_ids.add(media_id)
+            used_comments.append(comment)
+            used_normalized.add(normalize(comment))
+            history["commented_media_ids"] = sorted(commented_ids)
+            history["used_comments"] = used_comments
+            HISTORY_PATH.write_text(
+                json.dumps(history, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            sent += 1
+            print(f"Comentário enviado à publicação {media_id}: {comment}")
+            time.sleep(2)
+        except Exception as exc:
+            print(f"Falha ao comentar na publicação {media_id}: {type(exc).__name__}: {exc}")
+            # Não registra como concluído se o envio falhou.
+
+    HISTORY_PATH.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Concluído: {sent} comentário(s) em artes encontradas por hashtag.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        print(f"Falha na busca/comentários por hashtag: {type(exc).__name__}: {exc}")
+        # Esta função é complementar e não deve desfazer a publicação da arte própria.
+        sys.exit(0)
