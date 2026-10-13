@@ -80,8 +80,8 @@ jobs:
               print(f"Não foi possível ler os controles; ações sociais ficam pausadas por segurança: {exc}")
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write("hashtag_enabled=" + str(not defaults["pause_hashtag_comments"]).lower() + "\\n")
-              output.write("reply_enabled=" + str(not defaults["pause_reply_comments"]).lower() + "\\n")
+              output.write("hashtag_enabled=" + str(not defaults["pause_hashtag_comments"]).lower() + "\n")
+              output.write("reply_enabled=" + str(not defaults["pause_reply_comments"]).lower() + "\n")
           print("Comentários por hashtag:", "ATIVOS" if not defaults["pause_hashtag_comments"] else "PAUSADOS")
           print("Respostas:", "ATIVAS" if not defaults["pause_reply_comments"] else "PAUSADAS")
           PY
