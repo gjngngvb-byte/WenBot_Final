@@ -425,6 +425,10 @@
         .activity-list { display: grid; gap: var(--space-xs); margin-block-start: var(--space-sm); }
         .activity-item { padding: var(--space-sm); color: var(--color-text); background: var(--color-activity); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-wrap: anywhere; }
         .activity-item small { display: block; margin-block-start: var(--space-2xs); color: var(--color-text-subtle); }
+        .activity-comment { color: var(--color-text-muted); line-height: var(--line-body); }
+        .activity-comment-label { display: block; margin-block-end: 0.15rem; color: var(--color-text-subtle); font-size: var(--font--2); text-transform: uppercase; letter-spacing: 0.04em; }
+        .activity-reply { margin-block-start: var(--space-xs); margin-inline-start: var(--space-md); padding-inline-start: var(--space-sm); border-inline-start: 2px solid var(--color-purple); line-height: var(--line-body); }
+        .activity-reply-label { display: block; margin-block-end: 0.15rem; color: var(--color-purple-bright); font-size: var(--font--2); text-transform: uppercase; letter-spacing: 0.04em; }
         .footer { margin-block-start: var(--space-lg); padding: var(--space-md); color: var(--color-text-subtle); border-block-start: 1px solid var(--color-border); text-align: center; font-size: var(--font--1); }
         .footer a { color: var(--color-blue-bright); text-decoration: none; }
         .footer a:hover { text-decoration: underline; }
@@ -722,11 +726,37 @@
             entries.forEach(entry => {
                 const item = document.createElement('div');
                 item.className = 'activity-item';
-                const message = type === 'hashtag' ? (entry.comment || 'Comentário enviado') : (entry.reply || 'Resposta enviada');
-                const context = type === 'hashtag'
-                    ? [entry.username ? '@' + entry.username : '', entry.caption ? entry.caption.slice(0, 120) : 'Publicação encontrada por hashtag'].filter(Boolean).join(' · ')
-                    : [entry.username ? '@' + entry.username : '', entry.comment ? 'Comentário recebido: ' + entry.comment : 'Resposta ao comentário'].filter(Boolean).join(' · ');
-                item.textContent = message;
+                const context = [
+                    entry.username ? '@' + entry.username : '',
+                    type === 'hashtag' && entry.caption ? entry.caption.slice(0, 120) : ''
+                ].filter(Boolean).join(' · ');
+
+                if (type === 'reply') {
+                    const commentBlock = document.createElement('div');
+                    commentBlock.className = 'activity-comment';
+                    const commentLabel = document.createElement('span');
+                    commentLabel.className = 'activity-comment-label';
+                    commentLabel.textContent = 'Comentário recebido';
+                    commentBlock.appendChild(commentLabel);
+                    const commentText = document.createElement('div');
+                    commentText.textContent = entry.comment || 'Comentário original não foi salvo no histórico antigo.';
+                    commentBlock.appendChild(commentText);
+                    item.appendChild(commentBlock);
+
+                    const replyBlock = document.createElement('div');
+                    replyBlock.className = 'activity-reply';
+                    const replyLabel = document.createElement('span');
+                    replyLabel.className = 'activity-reply-label';
+                    replyLabel.textContent = 'Resposta do WenBot';
+                    replyBlock.appendChild(replyLabel);
+                    const replyText = document.createElement('div');
+                    replyText.textContent = entry.reply || 'Resposta enviada';
+                    replyBlock.appendChild(replyText);
+                    item.appendChild(replyBlock);
+                } else {
+                    item.textContent = entry.comment || 'Comentário enviado';
+                }
+
                 const small = document.createElement('small');
                 small.textContent = [context, entry.commented_at || entry.replied_at || ''].filter(Boolean).join(' | ');
                 item.appendChild(small);
