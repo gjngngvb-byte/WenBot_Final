@@ -60,6 +60,7 @@ export default async (request) => {
   }
 
   const action = typeof body.action === "string" ? body.action : "publish";
+  // Inclui o controle de pausa/retomada usado pelos dois botões do painel.
   const allowedActions = new Set(["publish", "hashtag_comments", "reply_comments", "set_social_pause"]);
   if (!allowedActions.has(action)) {
     return responseJson({ error: "Tarefa solicitada inválida." }, 400, allowedOrigin);
