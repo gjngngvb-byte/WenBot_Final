@@ -487,7 +487,7 @@
 
                 <div class="param-group">
                     <label for="seed">Semente (Seed) - Opcional</label>
-                    <input type="number" id="seed" placeholder="Deixe vazio para aleatório">
+                    <input type="text" id="seed" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Deixe vazio para aleatório">
                     <small>Use o mesmo valor para resultados reproduzíveis</small>
                 </div>
 
@@ -1048,7 +1048,7 @@
             const params = {
                 width: parseInt(widthInput.value),
                 height: parseInt(heightInput.value),
-                seed: seedInput.value ? parseInt(seedInput.value) : null,
+                seed: seedInput.value.trim() === "" ? null : Number(seedInput.value.trim().replace(/^['"]+|['"]+$/g, "")),
                 model: modelSelect.value,
                 attempts: parseInt(attemptsInput.value)
             };
@@ -1070,7 +1070,7 @@
             }
 
             if (params.seed !== null && (!Number.isInteger(params.seed) || params.seed < 0 || params.seed > 999999999)) {
-                showToast('error', 'Erro de Validação', 'A semente deve ficar entre 0 e 999999999');
+                showToast('error', 'Erro de Validação', 'Digite apenas um número inteiro de 0 a 999999999, sem aspas.');
                 return;
             }
 
