@@ -112,6 +112,28 @@ def main():
 
     medias = client.user_medias(client.user_id, amount=100)
     previous_medias = [media for media in medias if str(value(media, "pk", "")) != new_media_pk] if new_media_pk else medias
+
+    # Guarda links reais para que o painel abra a publicação e o comentário correspondente.
+    media_codes = {
+        str(value(media, "pk", "")): str(value(media, "code", "") or "")
+        for media in medias
+    }
+    history_changed = False
+    for record in history["replies"]:
+        if not isinstance(record, dict):
+            continue
+        code = media_codes.get(str(record.get("media_id", "")), "")
+        if code:
+            media_url = f"https://www.instagram.com/p/{code}/"
+            comment_url = f"{media_url}c/{record.get('comment_id', '')}/" if record.get("comment_id") else media_url
+            if record.get("media_url") != media_url or record.get("comment_url") != comment_url or record.get("reply_url") != comment_url:
+                record["media_url"] = media_url
+                record["comment_url"] = comment_url
+                record["reply_url"] = comment_url
+                history_changed = True
+    if history_changed:
+        HISTORY_PATH.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+
     print(f"Publicação nova: {new_media_pk}. Verificando {len(previous_medias)} publicações anteriores.")
 
     sent = 0
@@ -161,12 +183,18 @@ def main():
                 replied_ids.add(comment_pk)
                 previous_replies.append(answer)
                 history["replied_comment_ids"] = sorted(replied_ids)
+                media_code = str(value(media, "code", "") or "")
+                media_url = f"https://www.instagram.com/p/{media_code}/" if media_code else ""
+                comment_url = f"{media_url}c/{comment_pk}/" if media_url else ""
                 history["replies"].append({
                     "comment_id": comment_pk,
                     "media_id": media_pk,
                     "username": username,
                     "comment": text[:300],
                     "reply": answer,
+                    "media_url": media_url,
+                    "comment_url": comment_url,
+                    "reply_url": comment_url,
                     "replied_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 })
                 HISTORY_PATH.write_text(
