@@ -422,18 +422,22 @@
             transition: color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard);
         }
         .toast-close:hover { color: var(--color-text); background: var(--color-border); }
-        .activity-list { display: grid; gap: var(--space-xs); margin-block-start: var(--space-sm); }
-        .activity-item { padding: var(--space-sm); color: var(--color-text); background: var(--color-activity); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-wrap: anywhere; }
-        .activity-item small { display: block; margin-block-start: var(--space-2xs); color: var(--color-text-subtle); }
-        .activity-thread { display: grid; gap: var(--space-xs); }
-        .activity-message { display: flex; align-items: flex-start; gap: var(--space-2xs); min-width: 0; }
-        .activity-message.reply { margin-inline-start: clamp(1rem, 8%, 2.5rem); padding-inline-start: var(--space-sm); border-inline-start: 2px solid rgba(167, 139, 250, 0.55); }
-        .activity-avatar { display: inline-flex; flex: 0 0 1.85rem; width: 1.85rem; height: 1.85rem; align-items: center; justify-content: center; border: 1px solid var(--color-border-strong); border-radius: 50%; color: var(--color-blue-bright); background: linear-gradient(145deg, rgba(109,168,255,.18), rgba(167,139,250,.14)); font-size: var(--font--2); font-weight: 750; }
+        .activity-list { display: grid; gap: 0.45rem; margin-block-start: var(--space-sm); }
+        .activity-item { padding: 0.55rem; color: var(--color-text); background: var(--color-activity); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-wrap: anywhere; }
+        .activity-item small { display: block; margin-block-start: 0.25rem; color: var(--color-text-subtle); font-size: 0.72rem; line-height: 1.35; }
+        .activity-thread { display: grid; gap: 0.35rem; }
+        .activity-message { display: flex; align-items: flex-start; gap: 0.4rem; min-width: 0; }
+        .activity-message.reply { margin-inline-start: clamp(0.5rem, 5%, 1.1rem); padding-inline-start: 0.45rem; border-inline-start: 2px solid rgba(167, 139, 250, 0.55); }
+        .activity-avatar { display: inline-flex; flex: 0 0 1.35rem; width: 1.35rem; height: 1.35rem; align-items: center; justify-content: center; border: 1px solid var(--color-border-strong); border-radius: 50%; color: var(--color-blue-bright); background: linear-gradient(145deg, rgba(109,168,255,.18), rgba(167,139,250,.14)); font-size: 0.68rem; font-weight: 750; text-decoration: none; }
         .activity-avatar.bot { color: var(--color-purple-bright); background: linear-gradient(145deg, rgba(167,139,250,.25), rgba(109,168,255,.12)); }
-        .activity-bubble { min-width: 0; flex: 1; padding: var(--space-xs) var(--space-sm); color: var(--color-text-muted); background: linear-gradient(135deg, rgba(109,168,255,.08), rgba(167,139,250,.06)); border: 1px solid var(--color-border); border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md); line-height: var(--line-body); overflow-wrap: anywhere; white-space: pre-wrap; }
-        .activity-message.reply .activity-bubble { color: var(--color-text); background: linear-gradient(135deg, rgba(167,139,250,.13), rgba(109,168,255,.08)); border-color: rgba(167,139,250,.24); border-radius: var(--radius-md) 0 var(--radius-md) var(--radius-md); }
-        .activity-message-name { display: block; margin-block-end: 0.15rem; color: var(--color-text-subtle); font-size: var(--font--2); font-weight: 650; }
+        .activity-avatar.link-disabled { opacity: 0.45; cursor: not-allowed; }
+        .activity-bubble { min-width: 0; flex: 1; padding: 0.4rem 0.55rem; color: var(--color-text-muted); background: linear-gradient(135deg, rgba(109,168,255,.08), rgba(167,139,250,.06)); border: 1px solid var(--color-border); border-radius: 0 var(--radius-sm) var(--radius-sm) var(--radius-sm); line-height: 1.4; font-size: 0.84rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+        .activity-message.reply .activity-bubble { color: var(--color-text); background: linear-gradient(135deg, rgba(167,139,250,.13), rgba(109,168,255,.08)); border-color: rgba(167,139,250,.24); border-radius: var(--radius-sm) 0 var(--radius-sm) var(--radius-sm); }
+        .activity-message-name { display: block; margin-block-end: 0.08rem; color: var(--color-text-subtle); font-size: 0.72rem; font-weight: 650; line-height: 1.3; }
+        .activity-message-name a { color: inherit; text-decoration: none; }
+        .activity-message-name a:hover { color: var(--color-blue-bright); text-decoration: underline; }
         .activity-message.reply .activity-message-name { color: var(--color-purple-bright); }
+        .activity-toggle { width: 100%; min-width: 0; margin-block-start: 0.55rem; padding: 0.45rem 0.7rem; font-size: 0.82rem; }
         .footer { margin-block-start: var(--space-lg); padding: var(--space-md); color: var(--color-text-subtle); border-block-start: 1px solid var(--color-border); text-align: center; font-size: var(--font--1); }
         .footer a { color: var(--color-blue-bright); text-decoration: none; }
         .footer a:hover { text-decoration: underline; }
@@ -564,7 +568,7 @@
             <p class="action-note">Mostra o histórico salvo pelo WenBot no GitHub. Os registros aparecem depois que a execução terminar e o histórico for enviado ao repositório.</p>
             <div class="action-grid">
                 <div><h3>🎨 Comentários em artes por hashtag</h3><div class="activity-list" id="hashtagActivity"><div class="activity-item">Carregando histórico...</div></div></div>
-                <div><h3>💬 Respostas aos seus comentários</h3><div class="activity-list" id="replyActivity"><div class="activity-item">Carregando histórico...</div></div></div>
+                <div><h3>💬 Respostas aos seus comentários</h3><div class="activity-list" id="replyActivity"><div class="activity-item">Carregando histórico...</div></div><button class="btn btn-secondary activity-toggle" id="toggleAllRepliesBtn" type="button" hidden>Mostrar todos</button></div>
             </div>
         </div>
 
@@ -695,9 +699,13 @@
             updateFileInfo();
         }
 
+        let showAllReplies = false;
+        let replyHistoryEntries = [];
+
         async function loadSocialActivity() {
             const hashtagBox = document.getElementById('hashtagActivity');
             const replyBox = document.getElementById('replyActivity');
+            const toggleRepliesBtn = document.getElementById('toggleAllRepliesBtn');
             refreshActivityBtn.disabled = true;
             refreshActivityBtn.textContent = 'Atualizando histórico...';
             try {
@@ -709,7 +717,12 @@
                 const hashtagData = hashtagResponse.ok ? await hashtagResponse.json() : {};
                 const replyData = replyResponse.ok ? await replyResponse.json() : {};
                 renderActivity(hashtagBox, (hashtagData.comment_log || []).slice(-8).reverse(), 'hashtag');
-                renderActivity(replyBox, (replyData.replies || []).slice(-8).reverse(), 'reply');
+                replyHistoryEntries = (replyData.replies || []).slice().reverse();
+                showAllReplies = false;
+                renderActivity(replyBox, replyHistoryEntries.slice(0, 1), 'reply');
+                toggleRepliesBtn.hidden = replyHistoryEntries.length <= 1;
+                toggleRepliesBtn.textContent = `Mostrar todos (${replyHistoryEntries.length})`;
+                toggleRepliesBtn.setAttribute('aria-expanded', 'false');
             } catch (error) {
                 hashtagBox.textContent = 'Não foi possível carregar o histórico agora.';
                 replyBox.textContent = 'Não foi possível carregar o histórico agora.';
@@ -718,6 +731,14 @@
                 refreshActivityBtn.textContent = '🧾 Atualizar últimos comentários e respostas';
             }
         }
+
+        document.getElementById('toggleAllRepliesBtn').addEventListener('click', () => {
+            showAllReplies = !showAllReplies;
+            renderActivity(document.getElementById('replyActivity'), showAllReplies ? replyHistoryEntries : replyHistoryEntries.slice(0, 1), 'reply');
+            const button = document.getElementById('toggleAllRepliesBtn');
+            button.textContent = showAllReplies ? 'Mostrar menos' : `Mostrar todos (${replyHistoryEntries.length})`;
+            button.setAttribute('aria-expanded', String(showAllReplies));
+        });
 
         function renderActivity(container, entries, type) {
             container.replaceChildren();
@@ -741,15 +762,31 @@
 
                     const commentRow = document.createElement('div');
                     commentRow.className = 'activity-message';
-                    const commentAvatar = document.createElement('span');
-                    commentAvatar.className = 'activity-avatar';
-                    commentAvatar.textContent = (entry.username || 'IG').slice(0, 2).toUpperCase();
-                    commentAvatar.setAttribute('aria-hidden', 'true');
+                    const commentUrl = entry.comment_url || entry.media_url || '';
+                    const commentAvatar = document.createElement(commentUrl ? 'a' : 'span');
+                    commentAvatar.className = 'activity-avatar' + (commentUrl ? '' : ' link-disabled');
+                    commentAvatar.textContent = '↗';
+                    commentAvatar.title = commentUrl ? 'Abrir comentário no Instagram' : 'Link direto disponível após a próxima execução';
+                    if (commentUrl) {
+                        commentAvatar.href = commentUrl;
+                        commentAvatar.target = '_blank';
+                        commentAvatar.rel = 'noopener noreferrer';
+                        commentAvatar.setAttribute('aria-label', 'Abrir comentário no Instagram');
+                    }
                     const commentBubble = document.createElement('div');
                     commentBubble.className = 'activity-bubble';
                     const commentName = document.createElement('span');
                     commentName.className = 'activity-message-name';
-                    commentName.textContent = entry.username ? '@' + entry.username : 'Comentário recebido';
+                    if (entry.username) {
+                        const profileLink = document.createElement('a');
+                        profileLink.href = 'https://www.instagram.com/' + encodeURIComponent(entry.username) + '/';
+                        profileLink.target = '_blank';
+                        profileLink.rel = 'noopener noreferrer';
+                        profileLink.textContent = '@' + entry.username;
+                        commentName.appendChild(profileLink);
+                    } else {
+                        commentName.textContent = 'Comentário recebido';
+                    }
                     const commentText = document.createElement('div');
                     commentText.textContent = entry.comment || 'Comentário original não foi salvo no histórico antigo.';
                     commentBubble.appendChild(commentName);
@@ -760,15 +797,27 @@
 
                     const replyRow = document.createElement('div');
                     replyRow.className = 'activity-message reply';
-                    const replyAvatar = document.createElement('span');
-                    replyAvatar.className = 'activity-avatar bot';
-                    replyAvatar.textContent = 'W';
-                    replyAvatar.setAttribute('aria-hidden', 'true');
+                    const replyUrl = entry.reply_url || commentUrl;
+                    const replyAvatar = document.createElement(replyUrl ? 'a' : 'span');
+                    replyAvatar.className = 'activity-avatar bot' + (replyUrl ? '' : ' link-disabled');
+                    replyAvatar.textContent = '↗';
+                    replyAvatar.title = replyUrl ? 'Abrir resposta no Instagram' : 'Link direto disponível após a próxima execução';
+                    if (replyUrl) {
+                        replyAvatar.href = replyUrl;
+                        replyAvatar.target = '_blank';
+                        replyAvatar.rel = 'noopener noreferrer';
+                        replyAvatar.setAttribute('aria-label', 'Abrir resposta no Instagram');
+                    }
                     const replyBubble = document.createElement('div');
                     replyBubble.className = 'activity-bubble';
                     const replyName = document.createElement('span');
                     replyName.className = 'activity-message-name';
-                    replyName.textContent = 'WenBot · resposta';
+                    const botProfileLink = document.createElement('a');
+                    botProfileLink.href = 'https://www.instagram.com/wen_._drawing/';
+                    botProfileLink.target = '_blank';
+                    botProfileLink.rel = 'noopener noreferrer';
+                    botProfileLink.textContent = '@wen_._drawing · resposta';
+                    replyName.appendChild(botProfileLink);
                     const replyText = document.createElement('div');
                     replyText.textContent = entry.reply || 'Resposta enviada';
                     replyBubble.appendChild(replyName);
