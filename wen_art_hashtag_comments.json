@@ -1,13 +1,19 @@
 {
   "commented_media_ids": [
+    "3762316240548347691",
+    "4002309042377906823",
     "4007281377098719119",
     "4007419334363832617",
-    "4007423214539450153"
+    "4007423214539450153",
+    "4007534023000991657"
   ],
   "used_comments": [
     "this is beautiful ✨",
     "the style is so cool",
-    "this looks fantastic"
+    "this looks fantastic",
+    "bonito demais da conta",
+    "isso tá lindo demaisss",
+    "a qualidade tá absurda"
   ],
   "comment_log": [
     {
@@ -30,6 +36,27 @@
       "caption": "Day 12. Eldritch Horror.  Tossin' out some King in Yellow Vibes! \n\nMake sure to check out the amazing work of everyone else doing the challenge! @tessalberry , @maddie__thomas__ @brandon.pillow.art ! \n\n#creeptids2026 #sketchchallenge #sketchaday #penandink",
       "comment": "this looks fantastic",
       "commented_at": "2026-10-14T02:14:54Z"
+    },
+    {
+      "media_id": "4002309042377906823",
+      "username": "randomryeink",
+      "caption": "Inktober: Oct 6th - Ogro\n\n#inktober #inktober2026 #desenhoamão #desenhopretoebranco",
+      "comment": "bonito demais da conta",
+      "commented_at": "2026-10-14T10:10:10Z"
+    },
+    {
+      "media_id": "3762316240548347691",
+      "username": "paloma_drawing",
+      "caption": "Testando outras poses..\n\n#desenhos #desenhosoriginais",
+      "comment": "isso tá lindo demaisss",
+      "commented_at": "2026-10-14T10:11:36Z"
+    },
+    {
+      "media_id": "4007534023000991657",
+      "username": "tiagosilva199630",
+      "caption": "Desenho feito a grafite #desenho #drawing #desenhorealista",
+      "comment": "a qualidade tá absurda",
+      "commented_at": "2026-10-14T10:13:52Z"
     }
   ]
 }
