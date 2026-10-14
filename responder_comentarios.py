@@ -181,6 +181,12 @@ def main():
                 continue
 
             try:
+                print(f"Curtindo o comentário {comment_pk} antes de responder.", flush=True)
+                try:
+                    client.comment_like(comment.pk)
+                    print(f"Comentário {comment_pk} curtido.", flush=True)
+                except Exception as like_exc:
+                    print(f"Não foi possível curtir o comentário {comment_pk}: {type(like_exc).__name__}: {like_exc}", flush=True)
                 answer = generate_reply(text, caption, username, previous_replies)
                 client.media_comment(media_pk, answer, replied_to_comment_id=comment.pk)
                 replied_ids.add(comment_pk)
