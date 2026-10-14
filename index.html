@@ -893,31 +893,27 @@
                     const commentRow = document.createElement('div');
                     commentRow.className = 'activity-message reply';
                     const postUrl = entry.media_url || '';
-                    const postAvatar = document.createElement(postUrl ? 'a' : 'span');
-                    postAvatar.className = 'activity-avatar bot' + (postUrl ? '' : ' link-disabled');
+                    const commentUrl = entry.comment_url || postUrl;
+                    const postAvatar = document.createElement(commentUrl ? 'a' : 'span');
+                    postAvatar.className = 'activity-avatar bot' + (commentUrl ? '' : ' link-disabled');
                     postAvatar.textContent = '↗';
-                    postAvatar.title = postUrl ? 'Abrir publicação comentada no Instagram' : 'Link da publicação disponível para novos registros';
-                    if (postUrl) {
-                        postAvatar.href = postUrl;
+                    postAvatar.title = commentUrl ? 'Abrir comentário do WenBot no Instagram' : 'Link disponível após a próxima execução';
+                    if (commentUrl) {
+                        postAvatar.href = commentUrl;
                         postAvatar.target = '_blank';
                         postAvatar.rel = 'noopener noreferrer';
-                        postAvatar.setAttribute('aria-label', 'Abrir publicação comentada no Instagram');
+                        postAvatar.setAttribute('aria-label', 'Abrir comentário do WenBot no Instagram');
                     }
                     const commentBubble = document.createElement('div');
                     commentBubble.className = 'activity-bubble';
                     const commentName = document.createElement('span');
                     commentName.className = 'activity-message-name';
-                    const owner = entry.username ? String(entry.username).replace(/^@/, '') : '';
-                    if (owner) {
-                        const profileLink = document.createElement('a');
-                        profileLink.href = 'https://www.instagram.com/' + encodeURIComponent(owner) + '/';
-                        profileLink.target = '_blank';
-                        profileLink.rel = 'noopener noreferrer';
-                        profileLink.textContent = '@' + owner;
-                        commentName.appendChild(profileLink);
-                    } else {
-                        commentName.textContent = 'Publicação comentada';
-                    }
+                    const botProfileLink = document.createElement('a');
+                    botProfileLink.href = 'https://www.instagram.com/wen_._drawing/';
+                    botProfileLink.target = '_blank';
+                    botProfileLink.rel = 'noopener noreferrer';
+                    botProfileLink.textContent = '@wen_._drawing · comentário';
+                    commentName.appendChild(botProfileLink);
                     const commentText = document.createElement('div');
                     commentText.textContent = entry.comment || 'Comentário enviado';
                     commentBubble.appendChild(commentName);
@@ -925,6 +921,44 @@
                     commentRow.appendChild(postAvatar);
                     commentRow.appendChild(commentBubble);
                     item.appendChild(commentRow);
+
+                    (Array.isArray(entry.replies) ? entry.replies : []).forEach(reply => {
+                        const replyRow = document.createElement('div');
+                        replyRow.className = 'activity-message';
+                        const replyUrl = reply.comment_url || commentUrl || postUrl;
+                        const replyAvatar = document.createElement(replyUrl ? 'a' : 'span');
+                        replyAvatar.className = 'activity-avatar' + (replyUrl ? '' : ' link-disabled');
+                        replyAvatar.textContent = '↗';
+                        replyAvatar.title = replyUrl ? 'Abrir conversa no Instagram' : 'Link da conversa indisponível';
+                        if (replyUrl) {
+                            replyAvatar.href = replyUrl;
+                            replyAvatar.target = '_blank';
+                            replyAvatar.rel = 'noopener noreferrer';
+                            replyAvatar.setAttribute('aria-label', 'Abrir conversa no Instagram');
+                        }
+                        const replyBubble = document.createElement('div');
+                        replyBubble.className = 'activity-bubble';
+                        const replyName = document.createElement('span');
+                        replyName.className = 'activity-message-name';
+                        const replyOwner = String(reply.username || '').replace(/^@/, '');
+                        if (replyOwner) {
+                            const replyProfile = document.createElement('a');
+                            replyProfile.href = 'https://www.instagram.com/' + encodeURIComponent(replyOwner) + '/';
+                            replyProfile.target = '_blank';
+                            replyProfile.rel = 'noopener noreferrer';
+                            replyProfile.textContent = '@' + replyOwner;
+                            replyName.appendChild(replyProfile);
+                        } else {
+                            replyName.textContent = 'Resposta recebida';
+                        }
+                        const replyText = document.createElement('div');
+                        replyText.textContent = reply.text || 'Resposta sem texto';
+                        replyBubble.appendChild(replyName);
+                        replyBubble.appendChild(replyText);
+                        replyRow.appendChild(replyAvatar);
+                        replyRow.appendChild(replyBubble);
+                        item.appendChild(replyRow);
+                    });
                 }
 
                 const small = document.createElement('small');
