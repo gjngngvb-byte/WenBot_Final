@@ -141,9 +141,10 @@ export default async (request) => {
   const width = Number(params.width ?? 1024);
   const height = Number(params.height ?? 1024);
   const attempts = Number(params.attempts ?? 3);
-  const seed = params.seed === null || params.seed === undefined || params.seed === ""
+  const seed = params.seed === null || params.seed === undefined
     ? ""
-    : String(params.seed);
+    : String(params.seed).trim();
+  const seedNumber = seed === "" ? null : Number(seed);
   const model = params.model ?? "@cf/black-forest-labs/flux-2-klein-9b";
   const allowedModels = new Set([
     "@cf/black-forest-labs/flux-2-klein-9b",
@@ -157,7 +158,7 @@ export default async (request) => {
   if (!Number.isInteger(attempts) || attempts < 1 || attempts > 10) {
     return responseJson({ error: "As tentativas devem ficar entre 1 e 10." }, 400, allowedOrigin);
   }
-  if (seed !== "" && (!/^\d+$/.test(seed) || Number(seed) > 999999999)) {
+  if (seed !== "" && (!Number.isSafeInteger(seedNumber) || seedNumber < 0 || seedNumber > 999999999)) {
     return responseJson({ error: "A semente deve ser um inteiro entre 0 e 999999999." }, 400, allowedOrigin);
   }
   if (!allowedModels.has(model)) {
@@ -180,6 +181,7 @@ export default async (request) => {
           ref: "main",
           inputs: {
             action,
+            manual_social_override: String(action === "hashtag_comments" || action === "reply_comments"),
             width: String(width),
             height: String(height),
             seed,
