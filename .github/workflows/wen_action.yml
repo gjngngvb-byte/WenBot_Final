@@ -42,6 +42,11 @@ on:
         required: false
         default: "3"
         type: string
+      manual_social_override:
+        description: "Ignorar pausa apenas nesta ação social manual"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -166,7 +171,7 @@ jobs:
           PY
 
       - name: Comentar em artes encontradas por hashtags
-        if: ${{ inputs.action != 'reply_comments' && steps.social_controls.outputs.hashtag_enabled == 'true' }}
+        if: ${{ inputs.action != 'reply_comments' && (steps.social_controls.outputs.hashtag_enabled == 'true' || (github.event.inputs.manual_social_override == 'true' && inputs.action == 'hashtag_comments')) }}
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -183,7 +188,7 @@ jobs:
           fi
 
       - name: Responder comentários de publicações anteriores
-        if: ${{ inputs.action != 'hashtag_comments' && steps.social_controls.outputs.reply_enabled == 'true' }}
+        if: ${{ inputs.action != 'hashtag_comments' && (steps.social_controls.outputs.reply_enabled == 'true' || (github.event.inputs.manual_social_override == 'true' && inputs.action == 'reply_comments')) }}
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
