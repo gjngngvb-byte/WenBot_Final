@@ -207,9 +207,12 @@ def main():
     used_normalized = {normalize(item) for item in used_comments}
 
     found = {}
+    search_successes = 0
+    search_errors = 0
     for hashtag in HASHTAGS:
         try:
             medias = client.hashtag_medias_recent(hashtag, amount=MEDIA_PER_HASHTAG)
+            search_successes += 1
             for media in medias:
                 media_id = str(field(media, "pk", "") or "")
                 media_user = field(media, "user", {}) or {}
@@ -219,6 +222,7 @@ def main():
                 # Apenas publicações de outras contas encontradas pelas hashtags.
                 found.setdefault(media_id, media)
         except Exception as exc:
+            search_errors += 1
             print(f"Hashtag #{hashtag} indisponível: {type(exc).__name__}: {exc}")
             continue
 
@@ -227,6 +231,7 @@ def main():
     print(f"Encontradas {len(candidates)} publicações ainda não comentadas.")
 
     sent = 0
+    post_failures = 0
     for media in candidates:
         if sent >= MAX_COMMENTS_PER_RUN:
             print(f"Limite de {MAX_COMMENTS_PER_RUN} comentários nesta execução atingido.")
@@ -262,11 +267,15 @@ def main():
             print(f"Comentário enviado à publicação {media_id}: {comment}")
             time.sleep(2)
         except Exception as exc:
+            post_failures += 1
             print(f"Falha ao comentar na publicação {media_id}: {type(exc).__name__}: {exc}")
             # Não registra como concluído se o envio falhou.
 
     HISTORY_PATH.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Concluído: {sent} comentário(s) em artes encontradas por hashtag.")
+    print(f"Diagnóstico: {search_successes} hashtag(s) consultada(s) com sucesso; {search_errors} erro(s) de busca; {post_failures} falha(s) ao comentar.")
+    if sent == 0 and (search_successes == 0 or post_failures > 0):
+        raise RuntimeError("Nenhum comentário foi enviado e a busca ou o envio apresentou falhas. Consulte as mensagens acima.")
 
 
 if __name__ == "__main__":
@@ -275,4 +284,4 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"Falha na busca/comentários por hashtag: {type(exc).__name__}: {exc}")
         # Esta função é complementar e não deve desfazer a publicação da arte própria.
-        sys.exit(0)
+        sys.exit(1)
