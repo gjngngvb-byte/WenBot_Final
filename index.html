@@ -459,9 +459,30 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
         }
+
+        /* Cronômetro flutuante, arrastável e sempre ancorado a uma lateral */
+        .next-run-widget { position: fixed; z-index: 1000; top: 1rem; right: 1rem; width: min(17rem, calc(100vw - 2rem)); padding: .85rem 1rem; color: var(--color-text); background: linear-gradient(145deg, rgba(17,26,53,.96), rgba(9,14,32,.96)); border: 1px solid var(--color-border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-panel), 0 0 1.25rem rgba(109,168,255,.15); backdrop-filter: blur(14px); touch-action: none; }
+        .next-run-widget.dragging { cursor: grabbing; opacity: .94; }
+        .next-run-grip { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.35rem; cursor:grab; user-select:none; color:var(--color-text-subtle); font-size:.75rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        .next-run-grip span:last-child { font-size:.95rem; letter-spacing:0; }
+        .next-run-count { font-size:clamp(1.45rem, 4vw, 1.9rem); line-height:1.2; font-weight:800; font-variant-numeric:tabular-nums; background:var(--gradient-brand); color:transparent; background-clip:text; }
+        .next-run-label { margin-top:.2rem; color:var(--color-text-muted); font-size:.8rem; }
+        .schedule-panel { margin-top:var(--space-md); }
+        .schedule-times { display:grid; grid-template-columns:repeat(auto-fit,minmax(7rem,1fr)); gap:.55rem; margin-top:.8rem; }
+        .schedule-time { padding:.65rem .75rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-activity); }
+        .schedule-time strong { display:block; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+        .schedule-time span { color:var(--color-text-subtle); font-size:.72rem; }
+        @media (max-width:30rem) { .next-run-widget { width:min(15rem,calc(100vw - 1.25rem)); padding:.7rem .8rem; } }
+
     </style>
 </head>
 <body>
+
+    <aside class="next-run-widget" id="nextRunWidget" aria-label="Contagem regressiva para a próxima execução">
+        <div class="next-run-grip" id="nextRunGrip" title="Arraste para outra lateral"><span>⠿ Próxima execução</span><span>↔</span></div>
+        <div class="next-run-count" id="nextRunCountdown">--:--:--</div>
+        <div class="next-run-label" id="nextRunLabel">Horários automáticos do GitHub Actions</div>
+    </aside>
     <div class="container">
         <header>
             <h1>🎨 WenBot Controller</h1>
@@ -570,6 +591,13 @@
                 <div><h3>🎨 Comentários em artes por hashtag</h3><div class="activity-list" id="hashtagActivity"><div class="activity-item">Carregando histórico...</div></div><button class="btn btn-secondary activity-toggle" id="toggleAllHashtagsBtn" type="button" hidden>Mostrar todos</button></div>
                 <div><h3>💬 Respostas aos seus comentários</h3><div class="activity-list" id="replyActivity"><div class="activity-item">Carregando histórico...</div></div><button class="btn btn-secondary activity-toggle" id="toggleAllRepliesBtn" type="button" hidden>Mostrar todos</button></div>
             </div>
+        </div>
+
+
+        <div class="panel panel-wide schedule-panel">
+            <h2>🕒 Horários das execuções automáticas</h2>
+            <p class="action-note">Cinco tentativas por dia, conforme o agendamento do GitHub Actions. Os horários abaixo são convertidos para o fuso horário deste dispositivo. O GitHub pode iniciar alguns minutos depois do horário previsto.</p>
+            <div class="schedule-times" id="scheduleTimes"></div>
         </div>
 
         <div class="panel panel-wide">
@@ -1366,6 +1394,103 @@
                 showToast('success', 'Copiado', successMessage);
             });
         }
+
+
+        // Cronômetro do agendamento GitHub Actions: 00, 05, 10, 15 e 20 UTC.
+        (() => {
+            const widget = document.getElementById('nextRunWidget');
+            const grip = document.getElementById('nextRunGrip');
+            const countdown = document.getElementById('nextRunCountdown');
+            const label = document.getElementById('nextRunLabel');
+            const scheduleBox = document.getElementById('scheduleTimes');
+            const scheduledUtcHours = [0, 5, 10, 15, 20];
+            const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+            let drag = null;
+
+            function nextScheduledRun(now = new Date()) {
+                const candidates = [];
+                for (let day = 0; day <= 1; day++) {
+                    for (const hour of scheduledUtcHours) {
+                        candidates.push(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + day, hour, 0, 0)));
+                    }
+                }
+                return candidates.find(date => date.getTime() > now.getTime()) || candidates[candidates.length - 1];
+            }
+
+            function renderScheduleTimes() {
+                scheduleBox.replaceChildren();
+                const now = new Date();
+                const runs = scheduledUtcHours.map(hour => {
+                    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, 0, 0));
+                    return { date, hour };
+                });
+                runs.sort((a, b) => a.date.getTime() - b.date.getTime());
+                for (const run of runs) {
+                    const card = document.createElement('div');
+                    card.className = 'schedule-time';
+                    const strong = document.createElement('strong');
+                    strong.textContent = timeFormatter.format(run.date);
+                    const detail = document.createElement('span');
+                    detail.textContent = 'Todos os dias';
+                    card.append(strong, detail);
+                    scheduleBox.appendChild(card);
+                }
+            }
+
+            function updateCountdown() {
+                const now = new Date();
+                const next = nextScheduledRun(now);
+                const remaining = Math.max(0, next.getTime() - now.getTime());
+                const hours = Math.floor(remaining / 3600000);
+                const minutes = Math.floor((remaining % 3600000) / 60000);
+                const seconds = Math.floor((remaining % 60000) / 1000);
+                countdown.textContent = [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+                label.textContent = 'Próxima tentativa prevista: ' + timeFormatter.format(next) + ' (hora local)';
+            }
+
+            grip.addEventListener('pointerdown', event => {
+                if (event.button !== 0 && event.pointerType === 'mouse') return;
+                const rect = widget.getBoundingClientRect();
+                drag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+                widget.classList.add('dragging');
+                widget.style.left = rect.left + 'px';
+                widget.style.top = rect.top + 'px';
+                widget.style.right = 'auto';
+                grip.setPointerCapture(event.pointerId);
+                event.preventDefault();
+            });
+            grip.addEventListener('pointermove', event => {
+                if (!drag || event.pointerId !== drag.pointerId) return;
+                const margin = 8;
+                const maxLeft = window.innerWidth - widget.offsetWidth - margin;
+                const maxTop = window.innerHeight - widget.offsetHeight - margin;
+                widget.style.left = Math.max(margin, Math.min(maxLeft, event.clientX - drag.offsetX)) + 'px';
+                widget.style.top = Math.max(margin, Math.min(maxTop, event.clientY - drag.offsetY)) + 'px';
+            });
+            function finishDrag(event) {
+                if (!drag || event.pointerId !== drag.pointerId) return;
+                const rect = widget.getBoundingClientRect();
+                const margin = 8;
+                const leftDistance = rect.left;
+                const rightDistance = window.innerWidth - rect.right;
+                // Ao soltar, encaixa na lateral mais próxima para não ficar no meio da tela.
+                widget.style.left = (leftDistance <= rightDistance ? margin : Math.max(margin, window.innerWidth - widget.offsetWidth - margin)) + 'px';
+                widget.style.top = Math.max(margin, Math.min(window.innerHeight - widget.offsetHeight - margin, rect.top)) + 'px';
+                widget.classList.remove('dragging');
+                drag = null;
+            }
+            grip.addEventListener('pointerup', finishDrag);
+            grip.addEventListener('pointercancel', finishDrag);
+            window.addEventListener('resize', () => {
+                const rect = widget.getBoundingClientRect();
+                widget.style.left = Math.max(8, Math.min(window.innerWidth - widget.offsetWidth - 8, rect.left)) + 'px';
+                widget.style.top = Math.max(8, Math.min(window.innerHeight - widget.offsetHeight - 8, rect.top)) + 'px';
+            });
+            updateCountdown();
+            renderScheduleTimes();
+            setInterval(updateCountdown, 1000);
+            setInterval(renderScheduleTimes, 60000);
+        })();
 
         // Handle visibility change para pausar polling quando aba não está visível
         document.addEventListener('visibilitychange', () => {
