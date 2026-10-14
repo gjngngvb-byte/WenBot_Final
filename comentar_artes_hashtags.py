@@ -15,16 +15,19 @@ HISTORY_PATH = Path("wen_art_hashtag_comments.json")
 MAX_COMMENTS_PER_RUN = 3
 MEDIA_PER_HASHTAG = 8
 
-# 30 hashtags prioritárias para encontrar desenhos e ilustrações.
-# Foco em arte autoral, desenho, sketch e line art, alinhado ao perfil Wen.
+# 30 hashtags por execução: 2 brasileiras em português para cada 1 internacional.
+# A ordem intercalada mantém a proporção 20 brasileiras + 10 internacionais.
 HASHTAGS = [
-    "desenho", "arte", "ilustracao", "desenhodigital", "desenhosautorais",
-    "desenhosoriginais", "desenhopretoebranco", "desenhando", "rabisco",
-    "artedigital", "artesbrasileiras", "desenhoartistico", "lineart",
-    "blackandwhiteart", "drawing", "drawings", "illustration", "artwork",
-    "sketch", "sketchbook", "pencildrawing", "inkdrawing", "inkillustration",
-    "digitalillustration", "digitaldrawing", "characterdesign", "conceptart",
-    "originalartwork", "handdrawnart", "creativeillustration",
+    "desenho", "arte", "drawing",
+    "ilustracao", "desenhodigital", "illustration",
+    "desenhosautorais", "desenhosoriginais", "artwork",
+    "desenhopretoebranco", "desenhando", "sketch",
+    "rabisco", "artedigital", "lineart",
+    "artesbrasileiras", "desenhoartistico", "blackandwhiteart",
+    "desenholivre", "desenhotradicional", "sketchbook",
+    "desenhistabrasileiro", "arteautoral", "pencildrawing",
+    "desenhoscriativos", "ilustrador", "inkdrawing",
+    "desenhoamano", "artebrasileira", "digitalillustration",
 ]
 
 # Frases curtas, coloquiais e adequadas a vários estilos de arte.
