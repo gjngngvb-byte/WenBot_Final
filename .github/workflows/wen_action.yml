@@ -91,6 +91,12 @@ jobs:
           print("Respostas:", "ATIVAS" if not defaults["pause_reply_comments"] else "PAUSADAS")
           PY
 
+      - name: Mostrar tarefa solicitada
+        run: |
+          echo "Evento: $GITHUB_EVENT_NAME"
+          echo "Ação solicitada: '${{ inputs.action }}'"
+          echo "Sobrescrita manual: '${{ inputs.manual_social_override }}'"
+
       - name: Instalar Python
         uses: actions/setup-python@v5
         with:
@@ -171,7 +177,7 @@ jobs:
           PY
 
       - name: Comentar em artes encontradas por hashtags
-        if: ${{ inputs.action != 'reply_comments' && (steps.social_controls.outputs.hashtag_enabled == 'true' || (github.event.inputs.manual_social_override == 'true' && inputs.action == 'hashtag_comments')) }}
+        if: ${{ inputs.action == 'hashtag_comments' || (inputs.action != 'reply_comments' && steps.social_controls.outputs.hashtag_enabled == 'true') }}
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -188,7 +194,7 @@ jobs:
           fi
 
       - name: Responder comentários de publicações anteriores
-        if: ${{ inputs.action != 'hashtag_comments' && (steps.social_controls.outputs.reply_enabled == 'true' || (github.event.inputs.manual_social_override == 'true' && inputs.action == 'reply_comments')) }}
+        if: ${{ inputs.action == 'reply_comments' || (inputs.action != 'hashtag_comments' && steps.social_controls.outputs.reply_enabled == 'true') }}
         env:
           INSTAGRAM_SESSION: ${{ secrets.INSTAGRAM_SESSION }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
