@@ -1498,7 +1498,7 @@
             function startDrag(event) {
                 if (event.button !== 0 && event.pointerType === 'mouse') return;
                 const rect = widget.getBoundingClientRect();
-                drag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+                drag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top, startX: event.clientX, startY: event.clientY, moved: false };
                 widget.classList.add('dragging');
                 widget.style.left = rect.left + 'px';
                 widget.style.top = rect.top + 'px';
@@ -1510,6 +1510,7 @@
             compact.addEventListener('pointerdown', startDrag);
             function moveDrag(event) {
                 if (!drag || event.pointerId !== drag.pointerId) return;
+                if (Math.abs(event.clientX - drag.startX) > 6 || Math.abs(event.clientY - drag.startY) > 6) drag.moved = true;
                 const margin = 8;
                 const maxLeft = window.innerWidth - widget.offsetWidth - margin;
                 const maxTop = window.innerHeight - widget.offsetHeight - margin;
@@ -1520,6 +1521,7 @@
             compact.addEventListener('pointermove', moveDrag);
             function finishDrag(event) {
                 if (!drag || event.pointerId !== drag.pointerId) return;
+                const wasMoved = drag.moved;
                 const rect = widget.getBoundingClientRect();
                 const margin = 8;
                 const leftDistance = rect.left;
@@ -1529,7 +1531,7 @@
                 widget.style.top = Math.max(margin, Math.min(window.innerHeight - widget.offsetHeight - margin, rect.top)) + 'px';
                 widget.classList.remove('dragging');
                 drag = null;
-                if (event.currentTarget === compact) compact.dataset.dragged = 'true';
+                if (event.currentTarget === compact && wasMoved) compact.dataset.dragged = 'true';
             }
             for (const handle of [grip, compact]) {
                 handle.addEventListener('pointerup', finishDrag);
