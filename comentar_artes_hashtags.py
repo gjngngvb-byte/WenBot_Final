@@ -270,8 +270,15 @@ def main():
                 encoding="utf-8",
             )
             sent += 1
-            print(f"Comentário enviado à publicação {media_id}: {comment}")
-            time.sleep(2)
+            print(f"Comentário enviado à publicação {media_id}: {comment}", flush=True)
+            if sent < MAX_COMMENTS_PER_RUN:
+                delay_seconds = random.randint(60, 120)
+                print(
+                    f"Aguardando {delay_seconds} segundos antes do próximo comentário "
+                    f"({sent}/{MAX_COMMENTS_PER_RUN} enviados).",
+                    flush=True,
+                )
+                time.sleep(delay_seconds)
         except Exception as exc:
             post_failures += 1
             print(f"Falha ao comentar na publicação {media_id}: {type(exc).__name__}: {exc}")
