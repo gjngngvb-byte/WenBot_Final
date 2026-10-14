@@ -250,6 +250,12 @@ def main():
             continue
 
         try:
+            print(f"Curtindo a publicação {media_id} antes de comentar.", flush=True)
+            try:
+                client.media_like(media_id)
+                print(f"Publicação {media_id} curtida.", flush=True)
+            except Exception as like_exc:
+                print(f"Não foi possível curtir a publicação {media_id}: {type(like_exc).__name__}: {like_exc}", flush=True)
             client.media_comment(media_id, comment)
             commented_ids.add(media_id)
             used_comments.append(comment)
