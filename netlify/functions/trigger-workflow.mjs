@@ -157,7 +157,7 @@ export default async (request) => {
   if (!Number.isInteger(attempts) || attempts < 1 || attempts > 10) {
     return responseJson({ error: "As tentativas devem ficar entre 1 e 10." }, 400, allowedOrigin);
   }
-  if (seed !== "" && (!/^\\d+$/.test(seed) || Number(seed) > 999999999)) {
+  if (seed !== "" && (!/^\d+$/.test(seed) || Number(seed) > 999999999)) {
     return responseJson({ error: "A semente deve ser um inteiro entre 0 e 999999999." }, 400, allowedOrigin);
   }
   if (!allowedModels.has(model)) {
