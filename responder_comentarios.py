@@ -119,6 +119,8 @@ def main():
         for media in medias
     }
     history_changed = False
+    read_errors = 0
+    reply_failures = 0
     for record in history["replies"]:
         if not isinstance(record, dict):
             continue
@@ -147,6 +149,7 @@ def main():
         try:
             comments = client.media_comments(media_pk, amount=100)
         except Exception as exc:
+            read_errors += 1
             print(f"Não foi possível ler comentários da publicação {media_pk}: {type(exc).__name__}: {exc}")
             continue
 
@@ -205,12 +208,16 @@ def main():
                 print(f"Respondido @{username} na publicação {media_pk}.")
                 time.sleep(3)
             except Exception as exc:
+                reply_failures += 1
                 print(f"Falha ao responder comentário {comment_pk}: {type(exc).__name__}: {exc}")
                 # Não marca como respondido: será tentado novamente numa publicação futura.
                 continue
 
     HISTORY_PATH.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Concluído: {sent} comentário(s) respondido(s).")
+    print(f"Diagnóstico: {read_errors} erro(s) ao ler comentários; {reply_failures} falha(s) ao responder.")
+    if sent == 0 and (read_errors > 0 or reply_failures > 0):
+        raise RuntimeError("Nenhuma resposta foi enviada e houve falha ao ler ou responder comentários. Consulte as mensagens acima.")
 
 
 if __name__ == "__main__":
@@ -219,4 +226,4 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"Falha no processamento de comentários: {type(exc).__name__}: {exc}")
         # A publicação já ocorreu; não transformar uma falha de comentários em falha de publicação.
-        sys.exit(0)
+        sys.exit(1)
