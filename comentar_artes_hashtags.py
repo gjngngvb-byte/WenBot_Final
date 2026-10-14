@@ -194,6 +194,93 @@ def choose_comment(language_code, used_comments, caption=""):
     return random.choice(candidates)
 
 
+def refresh_comment_replies(client, history, own_user_id):
+    """Atualiza as respostas recebidas nos comentários publicados pelo próprio bot."""
+    entries = history.get("comment_log", [])
+    if not entries:
+        return
+
+    # Varre um lote por execução para limitar chamadas ao Instagram.
+    batch_size = 25
+    try:
+        offset = int(history.get("reply_scan_offset", max(0, len(entries) - batch_size)))
+    except (TypeError, ValueError):
+        offset = max(0, len(entries) - batch_size)
+    offset %= len(entries)
+    batch = [entries[(offset + index) % len(entries)] for index in range(min(batch_size, len(entries)))]
+    changed = False
+
+    for record in batch:
+        if not isinstance(record, dict):
+            continue
+        media_id = str(record.get("media_id", "") or "")
+        comment_id = str(record.get("comment_id", "") or "")
+        comment_text = normalize(str(record.get("comment", "") or ""))
+        if not media_id or not comment_text:
+            continue
+
+        try:
+            # Registros antigos não guardavam o ID do comentário. Tenta encontrá-lo
+            # pelo autor e pelo texto antes de buscar as respostas.
+            if not comment_id:
+                for candidate in client.media_comments(media_id, amount=100):
+                    candidate_user = field(candidate, "user", {}) or {}
+                    candidate_user_id = str(
+                        field(candidate, "user_id", "") or field(candidate_user, "pk", "") or ""
+                    )
+                    candidate_text = normalize(str(field(candidate, "text", "") or ""))
+                    candidate_id = str(field(candidate, "pk", "") or "")
+                    if candidate_id and candidate_user_id == str(own_user_id) and candidate_text == comment_text:
+                        comment_id = candidate_id
+                        record["comment_id"] = comment_id
+                        changed = True
+                        break
+
+            if not comment_id:
+                continue
+
+            media_url = str(record.get("media_url", "") or "")
+            comment_url = f"{media_url}c/{comment_id}/" if media_url else ""
+            if comment_url and record.get("comment_url") != comment_url:
+                record["comment_url"] = comment_url
+                changed = True
+
+            saved_replies = []
+            for reply in client.media_comment_replies(media_id, comment_id, amount=50):
+                reply_user = field(reply, "user", {}) or {}
+                reply_user_id = str(
+                    field(reply, "user_id", "") or field(reply_user, "pk", "") or ""
+                )
+                reply_id = str(field(reply, "pk", "") or "")
+                reply_text = str(field(reply, "text", "") or "").strip()
+                if not reply_id or not reply_text or reply_user_id == str(own_user_id):
+                    continue
+                saved_replies.append({
+                    "comment_id": reply_id,
+                    "username": str(field(reply_user, "username", "") or ""),
+                    "text": reply_text[:500],
+                    "comment_url": comment_url or media_url,
+                    "replied_at": str(field(reply, "created_at_utc", "") or ""),
+                })
+
+            if record.get("replies", []) != saved_replies:
+                record["replies"] = saved_replies
+                changed = True
+        except Exception as exc:
+            print(
+                f"Não foi possível atualizar respostas do comentário "
+                f"{record.get('media_id', '')}: {type(exc).__name__}: {exc}",
+                flush=True,
+            )
+
+    history["reply_scan_offset"] = (offset + len(batch)) % len(entries)
+    if changed:
+        HISTORY_PATH.write_text(
+            json.dumps(history, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+
 def main():
     session_json = os.environ.get("INSTAGRAM_SESSION", "").strip()
     if not session_json:
@@ -206,6 +293,7 @@ def main():
     own_user_id = str(client.user_id)
 
     history = load_history()
+    refresh_comment_replies(client, history, own_user_id)
     commented_ids = {str(item) for item in history["commented_media_ids"]}
     used_comments = list(history["used_comments"])
     used_normalized = {normalize(item) for item in used_comments}
@@ -256,7 +344,8 @@ def main():
                 print(f"Publicação {media_id} curtida.", flush=True)
             except Exception as like_exc:
                 print(f"Não foi possível curtir a publicação {media_id}: {type(like_exc).__name__}: {like_exc}", flush=True)
-            client.media_comment(media_id, comment)
+            posted_comment = client.media_comment(media_id, comment)
+            posted_comment_id = str(field(posted_comment, "pk", "") or "")
             commented_ids.add(media_id)
             used_comments.append(comment)
             used_normalized.add(normalize(comment))
@@ -268,7 +357,10 @@ def main():
                 "username": str(field(media_user, "username", "") or ""),
                 "caption": str(field(media, "caption_text", "") or "")[:300],
                 "comment": comment,
+                "comment_id": posted_comment_id,
+                "replies": [],
                 "media_url": media_url,
+                "comment_url": f"{media_url}c/{posted_comment_id}/" if media_url and posted_comment_id else media_url,
                 "commented_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             })
             history["comment_log"] = history["comment_log"][-300:]
