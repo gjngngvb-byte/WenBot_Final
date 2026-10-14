@@ -1,4 +1,4 @@
 {
-  "pause_hashtag_comments": true,
-  "pause_reply_comments": true
+  "pause_hashtag_comments": false,
+  "pause_reply_comments": false
 }
