@@ -567,7 +567,7 @@
             <h2>🗂️ Atividade recente do Instagram</h2>
             <p class="action-note">Mostra o histórico salvo pelo WenBot no GitHub. Os registros aparecem depois que a execução terminar e o histórico for enviado ao repositório.</p>
             <div class="action-grid">
-                <div><h3>🎨 Comentários em artes por hashtag</h3><div class="activity-list" id="hashtagActivity"><div class="activity-item">Carregando histórico...</div></div></div>
+                <div><h3>🎨 Comentários em artes por hashtag</h3><div class="activity-list" id="hashtagActivity"><div class="activity-item">Carregando histórico...</div></div><button class="btn btn-secondary activity-toggle" id="toggleAllHashtagsBtn" type="button" hidden>Mostrar todos</button></div>
                 <div><h3>💬 Respostas aos seus comentários</h3><div class="activity-list" id="replyActivity"><div class="activity-item">Carregando histórico...</div></div><button class="btn btn-secondary activity-toggle" id="toggleAllRepliesBtn" type="button" hidden>Mostrar todos</button></div>
             </div>
         </div>
@@ -700,12 +700,15 @@
         }
 
         let showAllReplies = false;
+        let showAllHashtags = false;
         let replyHistoryEntries = [];
+        let hashtagHistoryEntries = [];
 
         async function loadSocialActivity() {
             const hashtagBox = document.getElementById('hashtagActivity');
             const replyBox = document.getElementById('replyActivity');
             const toggleRepliesBtn = document.getElementById('toggleAllRepliesBtn');
+            const toggleHashtagsBtn = document.getElementById('toggleAllHashtagsBtn');
             refreshActivityBtn.disabled = true;
             refreshActivityBtn.textContent = 'Atualizando histórico...';
             try {
@@ -716,7 +719,12 @@
                 ]);
                 const hashtagData = hashtagResponse.ok ? await hashtagResponse.json() : {};
                 const replyData = replyResponse.ok ? await replyResponse.json() : {};
-                renderActivity(hashtagBox, (hashtagData.comment_log || []).slice(-8).reverse(), 'hashtag');
+                hashtagHistoryEntries = (hashtagData.comment_log || []).slice().reverse();
+                showAllHashtags = false;
+                renderActivity(hashtagBox, hashtagHistoryEntries.slice(0, 1), 'hashtag');
+                toggleHashtagsBtn.hidden = hashtagHistoryEntries.length <= 1;
+                toggleHashtagsBtn.textContent = `Mostrar todos (${hashtagHistoryEntries.length})`;
+                toggleHashtagsBtn.setAttribute('aria-expanded', 'false');
                 replyHistoryEntries = (replyData.replies || []).slice().reverse();
                 showAllReplies = false;
                 renderActivity(replyBox, replyHistoryEntries.slice(0, 1), 'reply');
@@ -731,6 +739,14 @@
                 refreshActivityBtn.textContent = '🧾 Atualizar últimos comentários e respostas';
             }
         }
+
+        document.getElementById('toggleAllHashtagsBtn').addEventListener('click', () => {
+            showAllHashtags = !showAllHashtags;
+            renderActivity(document.getElementById('hashtagActivity'), showAllHashtags ? hashtagHistoryEntries : hashtagHistoryEntries.slice(0, 1), 'hashtag');
+            const button = document.getElementById('toggleAllHashtagsBtn');
+            button.textContent = showAllHashtags ? 'Mostrar menos' : `Mostrar todos (${hashtagHistoryEntries.length})`;
+            button.setAttribute('aria-expanded', String(showAllHashtags));
+        });
 
         document.getElementById('toggleAllRepliesBtn').addEventListener('click', () => {
             showAllReplies = !showAllReplies;
@@ -826,7 +842,42 @@
                     replyRow.appendChild(replyBubble);
                     item.appendChild(replyRow);
                 } else {
-                    item.textContent = entry.comment || 'Comentário enviado';
+                    item.classList.add('activity-thread');
+                    const commentRow = document.createElement('div');
+                    commentRow.className = 'activity-message reply';
+                    const postUrl = entry.media_url || '';
+                    const postAvatar = document.createElement(postUrl ? 'a' : 'span');
+                    postAvatar.className = 'activity-avatar bot' + (postUrl ? '' : ' link-disabled');
+                    postAvatar.textContent = '↗';
+                    postAvatar.title = postUrl ? 'Abrir publicação comentada no Instagram' : 'Link da publicação disponível para novos registros';
+                    if (postUrl) {
+                        postAvatar.href = postUrl;
+                        postAvatar.target = '_blank';
+                        postAvatar.rel = 'noopener noreferrer';
+                        postAvatar.setAttribute('aria-label', 'Abrir publicação comentada no Instagram');
+                    }
+                    const commentBubble = document.createElement('div');
+                    commentBubble.className = 'activity-bubble';
+                    const commentName = document.createElement('span');
+                    commentName.className = 'activity-message-name';
+                    const owner = entry.username ? String(entry.username).replace(/^@/, '') : '';
+                    if (owner) {
+                        const profileLink = document.createElement('a');
+                        profileLink.href = 'https://www.instagram.com/' + encodeURIComponent(owner) + '/';
+                        profileLink.target = '_blank';
+                        profileLink.rel = 'noopener noreferrer';
+                        profileLink.textContent = '@' + owner;
+                        commentName.appendChild(profileLink);
+                    } else {
+                        commentName.textContent = 'Publicação comentada';
+                    }
+                    const commentText = document.createElement('div');
+                    commentText.textContent = entry.comment || 'Comentário enviado';
+                    commentBubble.appendChild(commentName);
+                    commentBubble.appendChild(commentText);
+                    commentRow.appendChild(postAvatar);
+                    commentRow.appendChild(commentBubble);
+                    item.appendChild(commentRow);
                 }
 
                 const small = document.createElement('small');
