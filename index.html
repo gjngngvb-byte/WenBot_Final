@@ -460,28 +460,47 @@
             *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
         }
 
-        /* Cronômetro flutuante, arrastável e sempre ancorado a uma lateral */
-        .next-run-widget { position: fixed; z-index: 1000; top: 1rem; right: 1rem; width: min(17rem, calc(100vw - 2rem)); padding: .85rem 1rem; color: var(--color-text); background: linear-gradient(145deg, rgba(17,26,53,.96), rgba(9,14,32,.96)); border: 1px solid var(--color-border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-panel), 0 0 1.25rem rgba(109,168,255,.15); backdrop-filter: blur(14px); touch-action: none; }
-        .next-run-widget.dragging { cursor: grabbing; opacity: .94; }
-        .next-run-grip { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.35rem; cursor:grab; user-select:none; color:var(--color-text-subtle); font-size:.75rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        /* Cronômetro flutuante compacto, expansível e arrastável */
+        .next-run-widget { position:fixed; z-index:1000; top:1rem; right:1rem; width:max-content; max-width:calc(100vw - 1rem); padding:0; color:var(--color-text); background:transparent; border:0; border-radius:999px; box-shadow:none; touch-action:pan-y; }
+        .next-run-widget.dragging { cursor:grabbing; opacity:.94; }
+        .next-run-compact { display:flex; align-items:center; justify-content:center; min-width:76px; min-height:48px; padding:.55rem .7rem; color:var(--color-text); background:linear-gradient(145deg,rgba(17,26,53,.97),rgba(9,14,32,.97)); border:1px solid var(--color-border-strong); border-radius:999px; box-shadow:var(--shadow-panel),0 0 .9rem rgba(109,168,255,.18); backdrop-filter:blur(14px); font-size:.82rem; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; cursor:grab; touch-action:none; }
+        .next-run-compact:focus-visible,.next-run-collapse:focus-visible { outline:2px solid var(--color-blue-bright); outline-offset:3px; }
+        .next-run-panel { width:min(18rem,calc(100vw - 1rem)); max-width:calc(100vw - 1rem); max-height:calc(100vh - 1rem); max-height:calc(100dvh - 1rem); padding:.75rem; overflow:auto; overscroll-behavior:contain; color:var(--color-text); background:linear-gradient(145deg,rgba(17,26,53,.98),rgba(9,14,32,.98)); border:1px solid var(--color-border-strong); border-radius:var(--radius-lg); box-shadow:var(--shadow-panel),0 0 1.25rem rgba(109,168,255,.15); backdrop-filter:blur(14px); }
+        .next-run-panel[hidden],.next-run-compact[hidden] { display:none !important; }
+        .next-run-panel-head { display:flex; align-items:center; gap:.5rem; }
+        .next-run-grip { display:flex; flex:1; align-items:center; justify-content:space-between; gap:.5rem; min-width:0; margin-bottom:.35rem; padding:.35rem 0; cursor:grab; user-select:none; color:var(--color-text-subtle); font-size:.7rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; touch-action:none; }
         .next-run-grip span:last-child { font-size:.95rem; letter-spacing:0; }
-        .next-run-count { font-size:clamp(1.45rem, 4vw, 1.9rem); line-height:1.2; font-weight:800; font-variant-numeric:tabular-nums; background:var(--gradient-brand); color:transparent; background-clip:text; }
-        .next-run-label { margin-top:.2rem; color:var(--color-text-muted); font-size:.8rem; }
+        .next-run-collapse { flex:0 0 40px; width:40px; height:40px; margin-bottom:.35rem; padding:0; color:var(--color-text); background:var(--color-button-glass); border:1px solid var(--color-button-border); border-radius:12px; font-size:1.35rem; cursor:pointer; }
+        .next-run-count { font-size:clamp(1.35rem, 4vw, 1.75rem); line-height:1.2; font-weight:800; font-variant-numeric:tabular-nums; background:var(--gradient-brand); color:transparent; background-clip:text; }
+        .next-run-label { margin-top:.2rem; color:var(--color-text-muted); font-size:.78rem; line-height:1.45; overflow-wrap:anywhere; }
         .schedule-panel { margin-top:var(--space-md); }
         .schedule-times { display:grid; grid-template-columns:repeat(auto-fit,minmax(7rem,1fr)); gap:.55rem; margin-top:.8rem; }
         .schedule-time { padding:.65rem .75rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-activity); }
         .schedule-time strong { display:block; font-size:1.05rem; font-variant-numeric:tabular-nums; }
         .schedule-time span { color:var(--color-text-subtle); font-size:.72rem; }
-        @media (max-width:30rem) { .next-run-widget { width:min(15rem,calc(100vw - 1.25rem)); padding:.7rem .8rem; } }
+        @media (max-width:30rem) {
+            .next-run-widget { max-width:calc(100vw - 1rem); }
+            .next-run-panel { width:min(18rem,calc(100vw - 1rem)); padding:.65rem; }
+            .next-run-count { font-size:1.4rem; }
+            .next-run-label { font-size:.76rem; }
+        }
 
     </style>
 </head>
 <body>
 
-    <aside class="next-run-widget" id="nextRunWidget" aria-label="Contagem regressiva para a próxima execução">
-        <div class="next-run-grip" id="nextRunGrip" title="Arraste para outra lateral"><span>⠿ Próxima execução</span><span>↔</span></div>
-        <div class="next-run-count" id="nextRunCountdown">--:--:--</div>
-        <div class="next-run-label" id="nextRunLabel">Horários automáticos do GitHub Actions</div>
+    <aside class="next-run-widget is-collapsed" id="nextRunWidget" aria-label="Contagem regressiva para a próxima execução">
+        <button class="next-run-compact" id="nextRunCompact" type="button" aria-expanded="false" aria-controls="nextRunPanel" aria-label="Mostrar painel do cronômetro">
+            <span id="nextRunCompactCountdown">--:--:--</span>
+        </button>
+        <div class="next-run-panel" id="nextRunPanel" hidden>
+            <div class="next-run-panel-head">
+                <div class="next-run-grip" id="nextRunGrip" title="Arraste para outra lateral"><span>⠿ Próxima execução</span><span>↔</span></div>
+                <button class="next-run-collapse" id="nextRunCollapse" type="button" aria-label="Recolher cronômetro" title="Recolher">−</button>
+            </div>
+            <div class="next-run-count" id="nextRunCountdown">--:--:--</div>
+            <div class="next-run-label" id="nextRunLabel">Horários automáticos do GitHub Actions</div>
+        </div>
     </aside>
     <div class="container">
         <header>
@@ -1400,6 +1419,10 @@
         (() => {
             const widget = document.getElementById('nextRunWidget');
             const grip = document.getElementById('nextRunGrip');
+            const compact = document.getElementById('nextRunCompact');
+            const compactCountdown = document.getElementById('nextRunCompactCountdown');
+            const panel = document.getElementById('nextRunPanel');
+            const collapse = document.getElementById('nextRunCollapse');
             const countdown = document.getElementById('nextRunCountdown');
             const label = document.getElementById('nextRunLabel');
             const scheduleBox = document.getElementById('scheduleTimes');
@@ -1444,11 +1467,35 @@
                 const hours = Math.floor(remaining / 3600000);
                 const minutes = Math.floor((remaining % 3600000) / 60000);
                 const seconds = Math.floor((remaining % 60000) / 1000);
-                countdown.textContent = [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+                const formatted = [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+                countdown.textContent = formatted;
+                compactCountdown.textContent = formatted;
                 label.textContent = 'Próxima tentativa prevista: ' + timeFormatter.format(next) + ' (hora local)';
             }
 
-            grip.addEventListener('pointerdown', event => {
+            function setExpanded(expanded) {
+                widget.classList.toggle('is-collapsed', !expanded);
+                compact.hidden = expanded;
+                panel.hidden = !expanded;
+                compact.setAttribute('aria-expanded', String(expanded));
+                compact.setAttribute('aria-label', expanded ? 'Painel do cronômetro aberto' : 'Mostrar painel do cronômetro');
+                if (expanded) keepWidgetInViewport();
+            }
+            function keepWidgetInViewport() {
+                const rect = widget.getBoundingClientRect();
+                const margin = 8;
+                widget.style.left = Math.max(margin, Math.min(window.innerWidth - widget.offsetWidth - margin, rect.left)) + 'px';
+                widget.style.top = Math.max(margin, Math.min(window.innerHeight - widget.offsetHeight - margin, rect.top)) + 'px';
+            }
+            compact.addEventListener('click', () => {
+                if (!compact.dataset.dragged) setExpanded(true);
+                compact.dataset.dragged = '';
+            });
+            collapse.addEventListener('click', () => setExpanded(false));
+            document.addEventListener('pointerdown', event => {
+                if (!widget.contains(event.target)) setExpanded(false);
+            });
+            function startDrag(event) {
                 if (event.button !== 0 && event.pointerType === 'mouse') return;
                 const rect = widget.getBoundingClientRect();
                 drag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
@@ -1456,17 +1503,21 @@
                 widget.style.left = rect.left + 'px';
                 widget.style.top = rect.top + 'px';
                 widget.style.right = 'auto';
-                grip.setPointerCapture(event.pointerId);
+                (event.currentTarget).setPointerCapture(event.pointerId);
                 event.preventDefault();
-            });
-            grip.addEventListener('pointermove', event => {
+            }
+            grip.addEventListener('pointerdown', startDrag);
+            compact.addEventListener('pointerdown', startDrag);
+            function moveDrag(event) {
                 if (!drag || event.pointerId !== drag.pointerId) return;
                 const margin = 8;
                 const maxLeft = window.innerWidth - widget.offsetWidth - margin;
                 const maxTop = window.innerHeight - widget.offsetHeight - margin;
                 widget.style.left = Math.max(margin, Math.min(maxLeft, event.clientX - drag.offsetX)) + 'px';
                 widget.style.top = Math.max(margin, Math.min(maxTop, event.clientY - drag.offsetY)) + 'px';
-            });
+            }
+            grip.addEventListener('pointermove', moveDrag);
+            compact.addEventListener('pointermove', moveDrag);
             function finishDrag(event) {
                 if (!drag || event.pointerId !== drag.pointerId) return;
                 const rect = widget.getBoundingClientRect();
@@ -1478,14 +1529,13 @@
                 widget.style.top = Math.max(margin, Math.min(window.innerHeight - widget.offsetHeight - margin, rect.top)) + 'px';
                 widget.classList.remove('dragging');
                 drag = null;
+                if (event.currentTarget === compact) compact.dataset.dragged = 'true';
             }
-            grip.addEventListener('pointerup', finishDrag);
-            grip.addEventListener('pointercancel', finishDrag);
-            window.addEventListener('resize', () => {
-                const rect = widget.getBoundingClientRect();
-                widget.style.left = Math.max(8, Math.min(window.innerWidth - widget.offsetWidth - 8, rect.left)) + 'px';
-                widget.style.top = Math.max(8, Math.min(window.innerHeight - widget.offsetHeight - 8, rect.top)) + 'px';
-            });
+            for (const handle of [grip, compact]) {
+                handle.addEventListener('pointerup', finishDrag);
+                handle.addEventListener('pointercancel', finishDrag);
+            }
+            window.addEventListener('resize', keepWidgetInViewport);
             updateCountdown();
             renderScheduleTimes();
             setInterval(updateCountdown, 1000);
